@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kasi Flavour – Seller Dashboard</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="brand-kasi">KASI</span>
+    <span class="brand-flavour">FLAVOUR</span>
+  </div>
+  <span style="color:var(--yellow);font-size:13px;font-weight:600;">Cook Dashboard</span>
+  <a href="index.html" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:13px;margin-left:auto">← Customer view</a>
+</nav>
+
+<div class="section" style="max-width:960px">
+
+  <!-- Stats row -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:32px">
+    <div class="stat-card">
+      <p class="stat-label">Today's Orders</p>
+      <p class="stat-val" id="stat-orders">–</p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-label">Today's Earnings</p>
+      <p class="stat-val" id="stat-earnings">–</p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-label">Rating</p>
+      <p class="stat-val" id="stat-rating">–</p>
+    </div>
+    <div class="stat-card">
+      <p class="stat-label">Badges Earned</p>
+      <p class="stat-val" id="stat-badges">–</p>
+    </div>
+  </div>
+
+  <!-- Incoming orders -->
+  <h2 style="margin-bottom:16px">🔔 Incoming Orders</h2>
+  <div id="orders-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px">
+    <p class="loading">Loading orders...</p>
+  </div>
+
+  <!-- Menu management -->
+  <h2 style="margin-bottom:16px">🍽 My Menu</h2>
+  <button class="btn-primary" style="width:auto;padding:10px 24px;margin-bottom:16px"
+    onclick="showAddItemForm()">+ Add New Item</button>
+
+  <div id="add-item-form" class="hidden" style="background:var(--cream);border-radius:var(--radius);padding:20px;margin-bottom:20px">
+    <h3 style="margin-bottom:12px">New Menu Item</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <input id="item-name"  type="text"   placeholder="Meal name"     style="padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px"/>
+      <input id="item-price" type="number" placeholder="Price (R)"     style="padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px"/>
+      <input id="item-tags"  type="text"   placeholder="Tags (e.g. pap,traditional)" style="padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px"/>
+      <input id="item-desc"  type="text"   placeholder="Short description" style="padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px"/>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:12px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+        <input type="checkbox" id="item-flash"/> Flash Deal
+      </label>
+      <input id="item-flash-price" type="number" placeholder="Flash price (R)" style="padding:8px;border-radius:8px;border:1px solid #ddd;font-size:13px;width:140px"/>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn-primary" style="width:auto;padding:10px 20px" onclick="submitNewItem()">Save Item</button>
+      <button onclick="hideAddItemForm()" style="padding:10px 20px;border-radius:8px;border:1.5px solid #ddd;background:none;cursor:pointer;font-size:14px">Cancel</button>
+    </div>
+  </div>
+
+  <div id="menu-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px"></div>
+</div>
+
+<style>
+  .stat-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    border-top: 4px solid var(--red);
+  }
+  .stat-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .stat-val   { font-size: 28px; font-weight: 800; color: var(--dark-brown); }
+
+  .order-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--orange);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .order-card .order-info { flex: 1; }
+  .order-card h4 { font-size: 15px; font-weight: 700; }
+  .order-card p  { font-size: 13px; color: #666; margin-top: 2px; }
+  .status-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .status-btn.confirm  { background: var(--amber); color: var(--dark-brown); }
+  .status-btn.ready    { background: var(--red);   color: white; }
+  .status-btn.confirm:hover { background: var(--orange); }
+</style>
+
+<script src="../js/api.js"></script>
+<script>
+  const COOK_ID = 1; // replace with JWT cook id
+
+  async function loadDashboard() {
+    try {
+      const orders = await api.getMyOrders();
+      renderOrders(orders.filter(o => ["pending","confirmed","preparing"].includes(o.status)));
+      const today = orders.filter(o => o.status === "delivered" &&
+        new Date(o.created_at).toDateString() === new Date().toDateString());
+      document.getElementById("stat-orders").textContent   = today.length;
+      document.getElementById("stat-earnings").textContent = `R${today.reduce((s,o)=>s+o.total,0).toFixed(2)}`;
+      document.getElementById("stat-rating").textContent   = "4.8 ⭐";
+      document.getElementById("stat-badges").textContent   = "🌶 👑 ⚡";
+    } catch (e) {
+      document.getElementById("orders-list").innerHTML = `<p style="color:#999">No active orders.</p>`;
+    }
+    loadMenu();
+  }
+
+  function renderOrders(orders) {
+    const el = document.getElementById("orders-list");
+    if (!orders.length) { el.innerHTML = `<p style="color:#999">No active orders right now.</p>`; return; }
+    el.innerHTML = orders.map(o => `
+      <div class="order-card">
+        <div class="order-info">
+          <h4>Order #${o.id}</h4>
+          <p>Total: <strong>R${o.total.toFixed(2)}</strong> · Status: ${o.status}</p>
+        </div>
+        ${o.status === "pending" ?
+          `<button class="status-btn confirm" onclick="updateStatus(${o.id},'confirmed')">Confirm</button>` : ""}
+        ${o.status === "confirmed" ?
+          `<button class="status-btn confirm" onclick="updateStatus(${o.id},'preparing')">Start cooking</button>` : ""}
+        ${o.status === "preparing" ?
+          `<button class="status-btn ready"   onclick="updateStatus(${o.id},'ready')">Mark ready</button>` : ""}
+      </div>`).join("");
+  }
+
+  async function updateStatus(orderId, status) {
+    try {
+      await fetch(`http://localhost:8000/api/orders/${orderId}/status?status=${status}`, { method: "PATCH" });
+      loadDashboard();
+    } catch (e) { alert("Failed to update status"); }
+  }
+
+  async function loadMenu() {
+    try {
+      const items = await api.getMenus();
+      const el = document.getElementById("menu-list");
+      el.innerHTML = items.map(item => `
+        <div class="menu-card">
+          <div class="menu-card-img">🍽</div>
+          <div class="menu-card-body">
+            <h3>${item.name}</h3>
+            <p class="kasi-tag">${item.cuisine_tags}</p>
+          </div>
+          <div class="menu-card-footer">
+            <span class="price">R${item.price.toFixed(2)}</span>
+            <button class="btn-add" onclick="deleteItem(${item.id})">Remove</button>
+          </div>
+        </div>`).join("");
+    } catch (e) { /* silent */ }
+  }
+
+  function showAddItemForm() { document.getElementById("add-item-form").classList.remove("hidden"); }
+  function hideAddItemForm() { document.getElementById("add-item-form").classList.add("hidden"); }
+
+  async function submitNewItem() {
+    const body = {
+      name:          document.getElementById("item-name").value,
+      price:         parseFloat(document.getElementById("item-price").value),
+      cuisine_tags:  document.getElementById("item-tags").value,
+      description:   document.getElementById("item-desc").value,
+      is_flash_deal: document.getElementById("item-flash").checked,
+      flash_price:   parseFloat(document.getElementById("item-flash-price").value) || null,
+    };
+    try {
+      await fetch(`http://localhost:8000/api/menus?cook_id=${COOK_ID}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      hideAddItemForm();
+      loadMenu();
+    } catch (e) { alert("Failed to add item"); }
+  }
+
+  async function deleteItem(id) {
+    if (!confirm("Remove this item from your menu?")) return;
+    await fetch(`http://localhost:8000/api/menus/${id}`, { method: "DELETE" });
+    loadMenu();
+  }
+
+  loadDashboard();
+  setInterval(loadDashboard, 15000); // auto-refresh every 15 s
+</script>
+</body>
+</html>

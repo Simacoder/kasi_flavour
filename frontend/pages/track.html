@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kasi Flavour – Track Order</title>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="brand-kasi">KASI</span>
+    <span class="brand-flavour">FLAVOUR</span>
+  </div>
+  <a href="index.html" style="color:var(--yellow);text-decoration:none;font-size:14px;">← Back</a>
+</nav>
+
+<div class="section">
+  <h2>📡 Live Order Tracking</h2>
+
+  <!-- Status steps -->
+  <div id="status-steps" style="display:flex;gap:8px;margin:16px 0;flex-wrap:wrap">
+    <div class="step active" data-step="pending">⏳ Pending</div>
+    <div class="step" data-step="preparing">👨‍🍳 Preparing</div>
+    <div class="step" data-step="picked_up">🚴 On the way</div>
+    <div class="step" data-step="delivered">✅ Delivered</div>
+  </div>
+
+  <p id="eta-label" style="color:var(--orange);font-weight:600;margin-bottom:12px">
+    Connecting to driver...
+  </p>
+
+  <!-- Leaflet map -->
+  <div id="map"></div>
+</div>
+
+<style>
+  .step {
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: var(--cream);
+    border: 1.5px solid var(--amber);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--dark-brown);
+    opacity: .45;
+    transition: opacity .3s, background .3s;
+  }
+  .step.active { opacity: 1; background: var(--amber); color: var(--white); }
+</style>
+
+<script src="../js/api.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // ── Parse order ID from URL ──────────────────────────────────────────────
+  const params   = new URLSearchParams(location.search);
+  const orderId  = parseInt(params.get("order") || "1");
+
+  // ── Init Leaflet map (centred on Soweto, Johannesburg) ───────────────────
+  const map = L.map("map").setView([-26.2485, 27.8546], 14);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors"
+  }).addTo(map);
+
+  // Custom markers
+  const driverIcon = L.divIcon({
+    html: `<div style="font-size:28px;line-height:1">🚴</div>`,
+    className: "", iconAnchor: [14, 14]
+  });
+  const homeIcon = L.divIcon({
+    html: `<div style="font-size:28px;line-height:1">🏠</div>`,
+    className: "", iconAnchor: [14, 14]
+  });
+
+  const homeMarker   = L.marker([-26.2485, 27.8546], { icon: homeIcon }).addTo(map);
+  const driverMarker = L.marker([-26.255, 27.855], { icon: driverIcon }).addTo(map);
+
+  // ── Open WebSocket ────────────────────────────────────────────────────────
+  const ws = api.openTrackingSocket(orderId, (lat, lng) => {
+    driverMarker.setLatLng([lat, lng]);
+    map.panTo([lat, lng]);
+    document.getElementById("eta-label").textContent =
+      `Driver is ${calcDistance(lat, lng)} km away – ETA ~${estimateETA(lat, lng)} min`;
+  });
+
+  // ── Poll order status ──────────────────────────────────────────────────────
+  async function pollStatus() {
+    try {
+      const order = await api.getOrder(orderId);
+      setActiveStep(order.status);
+      if (order.status === "delivered") {
+        document.getElementById("eta-label").textContent = "🎉 Your order has been delivered!";
+        ws.close();
+        return;
+      }
+    } catch (e) { /* silent */ }
+    setTimeout(pollStatus, 5000);
+  }
+
+  function setActiveStep(status) {
+    const stepMap = {
+      pending: 0, confirmed: 0, preparing: 1,
+      ready: 1, picked_up: 2, delivered: 3
+    };
+    const steps = document.querySelectorAll(".step");
+    steps.forEach((el, i) => el.classList.toggle("active", i <= (stepMap[status] ?? 0)));
+  }
+
+  // ── Utility: rough haversine ──────────────────────────────────────────────
+  function calcDistance(lat, lng) {
+    const R = 6371, home = homeMarker.getLatLng();
+    const dLat = (lat - home.lat) * Math.PI / 180;
+    const dLng = (lng - home.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 +
+      Math.cos(home.lat * Math.PI/180) * Math.cos(lat * Math.PI/180) * Math.sin(dLng/2)**2;
+    return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1);
+  }
+
+  function estimateETA(lat, lng) {
+    return Math.max(2, Math.round(calcDistance(lat, lng) / 0.3)); // ~18 km/h
+  }
+
+  pollStatus();
+</script>
+</body>
+</html>

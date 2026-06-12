@@ -1,0 +1,32 @@
+# Kasi Flavour – Backend Dependencies
+# Install: pip install -r requirements.txt
+
+# ── FastAPI core ──────────────────────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy==2.0.30
+pymysql==1.1.0
+alembic==1.13.1
+
+# ── Auth / Security ───────────────────────────────────────────────────────────
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# ── Validation ────────────────────────────────────────────────────────────────
+pydantic[email]==2.7.1
+
+# ── ML ────────────────────────────────────────────────────────────────────────
+scikit-learn==1.4.2
+numpy==1.26.4
+pandas==2.2.2
+# Optional but recommended for better collaborative filtering:
+# scikit-surprise==1.1.3
+
+# ── WebSocket / Async ─────────────────────────────────────────────────────────
+websockets==12.0
+
+# ── Caching ───────────────────────────────────────────────────────────────────
+redis==5.0.4
