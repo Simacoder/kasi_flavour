@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kasi Flavour – Home-cooked Meals Delivered</title>
+  <link rel="stylesheet" href="./css/main.css"/>
+  <style>
+    /* ── Auth modal overlay ──────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 500;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity .22s;
+    }
+    .modal-backdrop.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      width: min(420px, 94vw);
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      overflow: hidden;
+      transform: translateY(24px);
+      transition: transform .22s;
+    }
+    .modal-backdrop.open .modal { transform: translateY(0); }
+
+    .modal-logo {
+      background: #3E2723;
+      padding: 22px 24px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-logo .kasi    { font-size:26px; font-weight:900; color:#FDD835; letter-spacing:3px; }
+    .modal-logo .flavour { font-size:20px; font-weight:700; color:#fff; }
+    .modal-logo .close-btn {
+      margin-left:auto; background:none; border:none;
+      color:rgba(255,255,255,.6); font-size:22px; cursor:pointer; line-height:1;
+    }
+    .modal-logo .close-btn:hover { color:#fff; }
+
+    .modal-body { padding: 24px; }
+
+    .auth-tabs {
+      display: flex; border-radius: 8px; overflow: hidden;
+      border: 1.5px solid #eee; margin-bottom: 20px;
+    }
+    .auth-tab {
+      flex: 1; padding: 10px; text-align: center;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      border: none; background: #f7f7f7; color: #888;
+      transition: all .15s;
+    }
+    .auth-tab.active { background: #D32F2F; color: #fff; }
+
+    .role-pills { display:flex; gap:6px; margin-bottom:18px; }
+    .role-pill  {
+      flex:1; padding:8px 4px; border-radius:8px; text-align:center;
+      font-size:12px; font-weight:700; cursor:pointer;
+      border:1.5px solid #eee; background:#f9f9f9; color:#888;
+      transition:all .15s;
+    }
+    .role-pill.active { border-color:#D32F2F; background:#fff3f3; color:#D32F2F; }
+
+    .form-row { margin-bottom:14px; }
+    .form-row label { display:block; font-size:11px; font-weight:700;
+                      color:#666; text-transform:uppercase; letter-spacing:.7px; margin-bottom:5px; }
+    .form-row input, .form-row select {
+      width:100%; padding:11px 13px; border:1.5px solid #e0e0e0;
+      border-radius:8px; font-size:14px; outline:none; transition:border-color .15s;
+    }
+    .form-row input:focus, .form-row select:focus { border-color:#D32F2F; }
+
+    .btn-auth {
+      width:100%; padding:13px; background:#D32F2F; color:#fff;
+      border:none; border-radius:8px; font-size:15px; font-weight:700;
+      cursor:pointer; margin-top:4px; transition:background .15s;
+    }
+    .btn-auth:hover    { background:#E64A19; }
+    .btn-auth:disabled { background:#ccc; cursor:not-allowed; }
+
+    .auth-msg { border-radius:8px; padding:9px 13px; font-size:13px;
+                margin-bottom:14px; display:none; }
+    .auth-msg.error   { background:#fff3f3; color:#c62828; border:1.5px solid #ffcdd2; }
+    .auth-msg.success { background:#f0faf0; color:#2e7d32; border:1.5px solid #c8e6c9; }
+
+    /* ── Navbar auth area ────────────────────────────────────────── */
+    .nav-auth { display:flex; align-items:center; gap:8px; margin-left:auto; }
+
+    .btn-login {
+      padding:7px 16px; border-radius:8px;
+      border:1.5px solid rgba(255,255,255,.4); background:none;
+      color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+      transition:all .15s;
+    }
+    .btn-login:hover { border-color:#FDD835; color:#FDD835; }
+
+    .btn-signup {
+      padding:7px 16px; border-radius:8px;
+      background:#D32F2F; border:none;
+      color:#fff; font-size:13px; font-weight:700; cursor:pointer;
+      transition:background .15s;
+    }
+    .btn-signup:hover { background:#E64A19; }
+
+    .user-chip {
+      display:flex; align-items:center; gap:8px;
+      background:rgba(255,255,255,.12); border-radius:20px;
+      padding:5px 12px; font-size:13px; color:#fff;
+    }
+    .user-chip .avatar {
+      width:28px; height:28px; border-radius:50%;
+      background:#D32F2F; display:flex; align-items:center;
+      justify-content:center; font-size:13px; font-weight:700; color:#fff;
+    }
+    .user-chip .dropdown-arrow { font-size:11px; opacity:.6; }
+
+    .user-menu {
+      position:absolute; top:54px; right:16px;
+      background:#fff; border-radius:10px; min-width:180px;
+      box-shadow:0 8px 24px rgba(0,0,0,.15);
+      z-index:300; display:none;
+      border:1px solid #f0f0f0;
+      overflow:hidden;
+    }
+    .user-menu.open { display:block; }
+    .user-menu a, .user-menu button {
+      display:block; width:100%; padding:11px 16px;
+      text-align:left; border:none; background:none;
+      font-size:14px; color:#333; cursor:pointer;
+      text-decoration:none; transition:background .12s;
+    }
+    .user-menu a:hover, .user-menu button:hover { background:#fff3f3; color:#D32F2F; }
+    .user-menu hr { border:none; border-top:1px solid #f0f0f0; margin:2px 0; }
+
+    /* ── Gate overlay on menu cards ──────────────────────────────── */
+    .menu-card { position:relative; }
+    .gate-overlay {
+      position:absolute; inset:0; border-radius:12px;
+      background:rgba(255,255,255,.01);
+      display:flex; align-items:flex-end; justify-content:center;
+      padding-bottom:12px; opacity:0;
+      transition:opacity .2s;
+      pointer-events:none;
+    }
+    .menu-card:hover .gate-overlay.locked { opacity:1; pointer-events:all; }
+    .gate-overlay.locked { background:rgba(62,39,35,.55); }
+    .gate-msg {
+      background:#D32F2F; color:#fff; border-radius:8px;
+      padding:8px 18px; font-size:13px; font-weight:700; cursor:pointer;
+    }
+
+    /* ── Hero ─────────────────────────────────────────────────────── */
+    .hero-stats { display:flex; gap:24px; justify-content:center; margin-top:20px; flex-wrap:wrap; }
+    .hero-stat  { text-align:center; }
+    .hero-stat .val { font-size:28px; font-weight:900; color:#FDD835; }
+    .hero-stat .lbl { font-size:12px; color:rgba(255,255,255,.7); margin-top:2px; }
+
+    /* ── How it works strip ───────────────────────────────────────── */
+    .how-strip {
+      background:#3E2723; padding:32px 24px; text-align:center;
+    }
+    .how-strip h3 { color:#FDD835; font-size:20px; font-weight:700; margin-bottom:20px; }
+    .how-steps { display:flex; gap:0; justify-content:center; flex-wrap:wrap; max-width:800px; margin:0 auto; }
+    .how-step  { flex:1; min-width:140px; padding:16px 12px; position:relative; }
+    .how-step .icon { font-size:36px; margin-bottom:8px; }
+    .how-step .title { font-size:13px; font-weight:700; color:#fff; margin-bottom:4px; }
+    .how-step .desc  { font-size:11px; color:rgba(255,255,255,.6); }
+    .how-step::after {
+      content:"→"; position:absolute; right:-8px; top:28px;
+      font-size:20px; color:#FF6F00;
+    }
+    .how-step:last-child::after { display:none; }
+
+    /* ── CTA banner ───────────────────────────────────────────────── */
+    .cta-banner {
+      background:linear-gradient(135deg,#D32F2F,#FF6F00);
+      padding:40px 24px; text-align:center; color:#fff;
+    }
+    .cta-banner h3 { font-size:26px; font-weight:800; margin-bottom:8px; }
+    .cta-banner p  { font-size:15px; opacity:.9; margin-bottom:20px; }
+    .btn-cta {
+      padding:14px 32px; background:#FDD835; color:#3E2723;
+      border:none; border-radius:10px; font-size:16px; font-weight:800;
+      cursor:pointer; transition:transform .15s;
+    }
+    .btn-cta:hover { transform:scale(1.04); }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ NAVBAR ═══════════════════════════════════════ -->
+<nav class="navbar" style="position:sticky;top:0;z-index:200">
+  <div class="nav-brand">
+    <span class="brand-kasi">KASI</span>
+    <span class="brand-flavour">FLAVOUR</span>
+  </div>
+
+  <div class="nav-links" style="margin-left:24px">
+    <a href="#menus">Browse</a>
+    <a href="#how">How it works</a>
+    <a href="orders.html"  id="nav-orders"  style="display:none">My Orders</a>
+    <a href="seller.html"  id="nav-seller"  style="display:none">Dashboard</a>
+    <a href="admin.html"   id="nav-admin"   style="display:none">Admin</a>
+  </div>
+
+  <!-- RIGHT SIDE: auth buttons OR user chip -->
+  <div class="nav-auth" id="nav-auth-area">
+    <button class="btn-login"  onclick="openModal('login')">Log in</button>
+    <button class="btn-signup" onclick="openModal('register')">Sign up free</button>
+  </div>
+
+  <!-- Logged-in chip (hidden until auth) -->
+  <div id="user-chip" class="user-chip" style="display:none;cursor:pointer" onclick="toggleUserMenu()">
+    <div class="avatar" id="user-avatar">?</div>
+    <span id="user-name-chip">You</span>
+    <span class="dropdown-arrow">▼</span>
+  </div>
+  <div id="user-menu" class="user-menu">
+    <a href="orders.html">📦 My Orders</a>
+    <a href="orders.html" id="um-seller" style="display:none">👨‍🍳 My Dashboard</a>
+    <a href="admin.html"  id="um-admin"  style="display:none">⚙️ Admin Panel</a>
+    <hr/>
+    <button onclick="logout()">🚪 Log out</button>
+  </div>
+
+  <!-- Cart (only visible when logged in) -->
+  <button class="cart-btn" id="cart-btn" style="display:none" onclick="openCart()">
+    🛒 <span id="cart-count" class="badge">0</span>
+  </button>
+</nav>
+
+<!-- ═══════════════════════ HERO ════════════════════════════════════════ -->
+<section class="hero">
+  <h1>Home-cooked meals, <span class="accent">delivered fast</span></h1>
+  <p>From your kasi — real food, real cooks, real community</p>
+
+  <div class="search-bar" style="margin-top:20px">
+    <input id="search" type="text" placeholder="Search meals, cuisine or kasi…" oninput="filterMenus()"/>
+    <select id="kasi-filter" onchange="filterMenus()">
+      <option value="">All kasies</option>
+      <option>Soweto</option><option>Alexandra</option>
+      <option>Tembisa</option><option>Soshanguve</option><option>Mamelodi</option>
+    </select>
+  </div>
+
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="val">1M+</div><div class="lbl">Students & professionals</div></div>
+    <div class="hero-stat"><div class="val">500+</div><div class="lbl">Local cooks</div></div>
+    <div class="hero-stat"><div class="val">R8</div><div class="lbl">Delivery from</div></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ HOW IT WORKS ════════════════════════════════ -->
+<div class="how-strip" id="how">
+  <h3>How Kasi Flavour Works</h3>
+  <div class="how-steps">
+    <div class="how-step"><div class="icon">👤</div><div class="title">Sign Up</div><div class="desc">Create a free account in 30 seconds</div></div>
+    <div class="how-step"><div class="icon">🔍</div><div class="title">Browse</div><div class="desc">Explore local cooks near you</div></div>
+    <div class="how-step"><div class="icon">🛒</div><div class="title">Order</div><div class="desc">Add meals and checkout</div></div>
+    <div class="how-step"><div class="icon">🚴</div><div class="title">Track</div><div class="desc">Live GPS from cook to door</div></div>
+    <div class="how-step"><div class="icon">🎉</div><div class="title">Enjoy</div><div class="desc">Authentic home-cooked goodness</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ FLASH DEALS ════════════════════════════════ -->
+<section class="section" id="flash-section">
+  <div class="section-header">
+    <h2>⏱ Flash Deals</h2>
+    <span id="flash-timer" class="timer"></span>
+  </div>
+  <div id="flash-grid" class="menu-grid"></div>
+</section>
+
+<!-- ═══════════════════════ ALL MENUS ══════════════════════════════════ -->
+<section class="section" id="menus">
+  <h2>🍽 All Meals</h2>
+  <div id="menu-grid" class="menu-grid"><p class="loading">Loading meals…</p></div>
+</section>
+
+<!-- ═══════════════════════ CTA BANNER ═════════════════════════════════ -->
+<div class="cta-banner" id="cta-banner">
+  <h3>Are you a cook? Start earning today 🍳</h3>
+  <p>List your meals, set your prices, and get orders from your neighbourhood.</p>
+  <button class="btn-cta" onclick="openModal('register')">Join as a Cook</button>
+</div>
+
+<!-- ═══════════════════════ FOOTER ═════════════════════════════════════ -->
+<footer style="background:#3E2723;color:rgba(255,255,255,.5);text-align:center;
+               padding:20px;font-size:13px">
+  © 2026 Kasi Flavour · Connecting communities · Creating opportunities
+</footer>
+
+<!-- ═══════════════════════ CART DRAWER ════════════════════════════════ -->
+<div id="cart-overlay" class="overlay hidden" onclick="closeCart()"></div>
+<aside id="cart-drawer" class="cart-drawer hidden">
+  <div class="cart-header">
+    <h3>🛒 Your Cart</h3>
+    <button onclick="closeCart()">✕</button>
+  </div>
+  <div id="cart-items"></div>
+  <div class="cart-footer">
+    <p>Delivery fee: <strong>R8.00</strong></p>
+    <p>Total: <strong id="cart-total">R0.00</strong></p>
+    <button class="btn-primary" onclick="placeOrder()">Place Order →</button>
+  </div>
+</aside>
+
+<!-- ═══════════════════════ AUTH MODAL ═════════════════════════════════ -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="handleBackdropClick(event)">
+  <div class="modal" id="auth-modal">
+
+    <div class="modal-logo">
+      <span class="kasi">KASI</span><span class="flavour">FLAVOUR</span>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Login / Register tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login"    onclick="switchTab('login')">Log In</button>
+        <button class="auth-tab"        id="tab-register" onclick="switchTab('register')">Sign Up</button>
+      </div>
+
+      <!-- Role pills (only shown on register) -->
+      <div id="role-pills" class="role-pills" style="display:none">
+        <div class="role-pill active" onclick="setRole('customer',this)">🛒 Customer</div>
+        <div class="role-pill"        onclick="setRole('cook',this)"    >👨‍🍳 Cook</div>
+        <div class="role-pill"        onclick="setRole('driver',this)"  >🚴 Driver</div>
+      </div>
+
+      <div id="auth-msg" class="auth-msg"></div>
+
+      <!-- ── LOGIN ── -->
+      <div id="panel-login">
+        <div class="form-row">
+          <label>Phone number</label>
+          <input id="l-phone" type="tel" placeholder="e.g. 0721234567"/>
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input id="l-pass" type="password" placeholder="Your password"/>
+        </div>
+        <button class="btn-auth" id="btn-login" onclick="doLogin()">Log In</button>
+        <p style="text-align:center;margin-top:12px;font-size:13px;color:#888">
+          No account? <a href="#" onclick="switchTab('register')" style="color:#D32F2F;font-weight:600">Sign up free</a>
+        </p>
+      </div>
+
+      <!-- ── REGISTER ── -->
+      <div id="panel-register" style="display:none">
+        <div class="form-row">
+          <label>Full name</label>
+          <input id="r-name" type="text" placeholder="Your full name"/>
+        </div>
+        <div class="form-row">
+          <label>Phone number</label>
+          <input id="r-phone" type="tel" placeholder="e.g. 0721234567"/>
+        </div>
+        <div class="form-row">
+          <label>Email (optional)</label>
+          <input id="r-email" type="email" placeholder="your@email.com"/>
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input id="r-pass" type="password" placeholder="Min. 6 characters"/>
+        </div>
+        <!-- Cook extras -->
+        <div id="cook-extras" style="display:none">
+          <div class="form-row">
+            <label>Your kasi</label>
+            <select id="r-kasi">
+              <option value="">Select neighbourhood</option>
+              <option>Soweto</option><option>Alexandra</option><option>Tembisa</option>
+              <option>Soshanguve</option><option>Mamelodi</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+        <!-- Driver extras -->
+        <div id="driver-extras" style="display:none">
+          <div class="form-row">
+            <label>Vehicle type</label>
+            <select id="r-vehicle">
+              <option value="motorbike">🏍 Motorbike</option>
+              <option value="bicycle">🚲 Bicycle</option>
+              <option value="car">🚗 Car</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-auth" id="btn-register" onclick="doRegister()">Create Free Account</button>
+        <p style="text-align:center;margin-top:12px;font-size:13px;color:#888">
+          Already have an account? <a href="#" onclick="switchTab('login')" style="color:#D32F2F;font-weight:600">Log in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="./js/api.js"></script>
+<script src="./js/cart.js"></script>
+<script src="./js/menus.js"></script>
+<script>
+/* ═══════════════ AUTH STATE ════════════════════════════════════════════ */
+const API = "http://localhost:8000/api";
+let currentRole = "customer";
+
+function isLoggedIn() { return !!localStorage.getItem("kf_token"); }
+
+function applyAuthState() {
+  const loggedIn = isLoggedIn();
+  const role     = localStorage.getItem("kf_role") || "customer";
+  const name     = localStorage.getItem("kf_name") || "You";
+
+  // Navbar auth area vs user chip
+  document.getElementById("nav-auth-area").style.display = loggedIn ? "none"  : "flex";
+  document.getElementById("user-chip").style.display     = loggedIn ? "flex"  : "none";
+  document.getElementById("cart-btn").style.display      = loggedIn ? "flex"  : "none";
+
+  if (loggedIn) {
+    document.getElementById("user-avatar").textContent   = name.charAt(0).toUpperCase();
+    document.getElementById("user-name-chip").textContent = name.split(" ")[0];
+
+    // Role-specific nav links
+    document.getElementById("nav-orders").style.display  = "block";
+    document.getElementById("nav-seller").style.display  = role === "cook"   ? "block" : "none";
+    document.getElementById("nav-admin").style.display   = role === "admin"  ? "block" : "none";
+    document.getElementById("um-seller").style.display   = role === "cook"   ? "block" : "none";
+    document.getElementById("um-admin").style.display    = role === "admin"  ? "block" : "none";
+
+    // Hide CTA banner for cooks
+    if (role === "cook") document.getElementById("cta-banner").style.display = "none";
+  }
+
+  // Re-render menu cards to show/hide gate overlay
+  if (typeof allMenuItems !== "undefined") renderMenuGrid(allMenuItems);
+}
+
+function logout() {
+  ["kf_token","kf_role","kf_name","kf_cart"].forEach(k => localStorage.removeItem(k));
+  applyAuthState();
+  toggleUserMenu(false);
+}
+
+function toggleUserMenu(force) {
+  const m = document.getElementById("user-menu");
+  const open = force !== undefined ? force : !m.classList.contains("open");
+  m.classList.toggle("open", open);
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest("#user-chip") && !e.target.closest("#user-menu"))
+    toggleUserMenu(false);
+});
+
+/* ═══════════════ MODAL ════════════════════════════════════════════════ */
+function openModal(tab = "login") {
+  switchTab(tab);
+  document.getElementById("modal-backdrop").classList.add("open");
+}
+function closeModal() {
+  document.getElementById("modal-backdrop").classList.remove("open");
+  clearAuthMsg();
+}
+function handleBackdropClick(e) {
+  if (e.target === document.getElementById("modal-backdrop")) closeModal();
+}
+
+function switchTab(tab) {
+  document.getElementById("panel-login").style.display    = tab === "login"    ? "block" : "none";
+  document.getElementById("panel-register").style.display = tab === "register" ? "block" : "none";
+  document.getElementById("tab-login").classList.toggle("active",    tab === "login");
+  document.getElementById("tab-register").classList.toggle("active", tab === "register");
+  document.getElementById("role-pills").style.display = tab === "register" ? "flex" : "none";
+  clearAuthMsg();
+}
+
+function setRole(role, el) {
+  currentRole = role;
+  document.querySelectorAll(".role-pill").forEach(p => p.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("cook-extras").style.display   = role === "cook"   ? "block" : "none";
+  document.getElementById("driver-extras").style.display = role === "driver" ? "block" : "none";
+}
+
+function showAuthMsg(msg, type) {
+  const el = document.getElementById("auth-msg");
+  el.textContent = msg;
+  el.className   = `auth-msg ${type}`;
+  el.style.display = "block";
+}
+function clearAuthMsg() {
+  document.getElementById("auth-msg").style.display = "none";
+}
+
+/* ═══════════════ LOGIN ════════════════════════════════════════════════ */
+async function doLogin() {
+  const phone    = document.getElementById("l-phone").value.trim();
+  const password = document.getElementById("l-pass").value;
+  if (!phone || !password) { showAuthMsg("Enter phone and password.", "error"); return; }
+
+  const btn = document.getElementById("btn-login");
+  btn.disabled = true; btn.textContent = "Logging in…";
+
+  try {
+    const res  = await fetch(`${API}/auth/login`, {
+      method: "POST", headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({ phone, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Login failed");
+
+    localStorage.setItem("kf_token", data.access_token);
+    localStorage.setItem("kf_role",  data.role || currentRole);
+    localStorage.setItem("kf_name",  data.name || phone);
+    showAuthMsg("Welcome back! 🎉", "success");
+    setTimeout(() => { closeModal(); applyAuthState(); }, 700);
+  } catch(e) {
+    showAuthMsg(e.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Log In";
+  }
+}
+
+/* ═══════════════ REGISTER ════════════════════════════════════════════ */
+async function doRegister() {
+  const name     = document.getElementById("r-name").value.trim();
+  const phone    = document.getElementById("r-phone").value.trim();
+  const email    = document.getElementById("r-email").value.trim();
+  const password = document.getElementById("r-pass").value;
+
+  if (!name || !phone || !password) { showAuthMsg("Name, phone and password required.", "error"); return; }
+  if (password.length < 6)          { showAuthMsg("Password must be at least 6 characters.", "error"); return; }
+
+  const btn = document.getElementById("btn-register");
+  btn.disabled = true; btn.textContent = "Creating account…";
+
+  try {
+    const res  = await fetch(`${API}/auth/register`, {
+      method: "POST", headers: { "Content-Type":"application/json" },
+      body: JSON.stringify({ name, phone, email: email||null, password, role: currentRole }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Registration failed");
+
+    localStorage.setItem("kf_token", data.access_token);
+    localStorage.setItem("kf_role",  currentRole);
+    localStorage.setItem("kf_name",  name);
+    showAuthMsg("Account created! Welcome to Kasi Flavour 🎉", "success");
+    setTimeout(() => { closeModal(); applyAuthState(); }, 800);
+  } catch(e) {
+    showAuthMsg(e.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Create Free Account";
+  }
+}
+
+/* ═══════════════ GATE: intercept add-to-cart if not logged in ═════════ */
+window.requireAuth = function(action) {
+  if (!isLoggedIn()) { openModal("login"); return false; }
+  return true;
+};
+
+/* ═══════════════ INIT ════════════════════════════════════════════════ */
+applyAuthState();
+</script>
+</body>
+</html>

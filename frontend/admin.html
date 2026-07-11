@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kasi Flavour – Admin Dashboard</title>
+  <link rel="stylesheet" href="./css/main.css"/>
+  <style>
+    body { background:#f4f4f4; }
+
+    /* ── Layout ───────────────────────────────────────────────── */
+    .admin-layout { display:flex; min-height:100vh; }
+
+    .sidebar {
+      width: 220px; min-width:220px;
+      background:#3E2723; padding:0;
+      display:flex; flex-direction:column;
+      position:sticky; top:0; height:100vh; overflow-y:auto;
+    }
+    .sidebar-logo {
+      padding:20px 16px 16px;
+      border-bottom:1px solid rgba(255,255,255,.1);
+    }
+    .sidebar-logo .kasi    { font-size:20px; font-weight:900; color:#FDD835; letter-spacing:2px; }
+    .sidebar-logo .flavour { font-size:15px; font-weight:700; color:#fff; }
+    .sidebar-logo .role-tag { font-size:10px; color:rgba(255,255,255,.4);
+      text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
+
+    .sidebar-nav { flex:1; padding:12px 0; }
+    .nav-item {
+      display:flex; align-items:center; gap:10px;
+      padding:11px 18px; font-size:13px; font-weight:600;
+      color:rgba(255,255,255,.6); cursor:pointer;
+      border:none; background:none; width:100%; text-align:left;
+      transition:all .15s; border-left:3px solid transparent;
+    }
+    .nav-item:hover   { color:#fff; background:rgba(255,255,255,.07); }
+    .nav-item.active  { color:#FDD835; background:rgba(255,255,255,.1);
+                        border-left-color:#D32F2F; }
+    .nav-item .icon   { font-size:17px; }
+
+    .sidebar-footer {
+      padding:14px 16px;
+      border-top:1px solid rgba(255,255,255,.1);
+    }
+    .sidebar-footer button {
+      width:100%; padding:9px; background:rgba(255,255,255,.08);
+      border:none; border-radius:8px; color:rgba(255,255,255,.6);
+      font-size:13px; cursor:pointer; transition:all .15s;
+    }
+    .sidebar-footer button:hover { background:rgba(255,255,255,.15); color:#fff; }
+
+    /* ── Main content ─────────────────────────────────────────── */
+    .admin-main { flex:1; padding:24px; overflow-y:auto; }
+
+    .page-header { margin-bottom:22px; }
+    .page-header h2 { font-size:22px; font-weight:800; color:#3E2723; }
+    .page-header p  { font-size:13px; color:#888; margin-top:3px; }
+
+    /* ── Stat cards ───────────────────────────────────────────── */
+    .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+                 gap:14px; margin-bottom:26px; }
+    .stat-card {
+      background:#fff; border-radius:12px; padding:18px;
+      box-shadow:0 2px 8px rgba(0,0,0,.07);
+      border-top:4px solid var(--clr,#D32F2F);
+    }
+    .stat-card .s-label { font-size:11px; font-weight:700; color:#888;
+                          text-transform:uppercase; letter-spacing:1px; }
+    .stat-card .s-val   { font-size:30px; font-weight:800; color:#3E2723; margin-top:4px; }
+    .stat-card .s-sub   { font-size:12px; color:#aaa; margin-top:2px; }
+
+    /* ── Charts row ───────────────────────────────────────────── */
+    .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:26px; }
+    .chart-card { background:#fff; border-radius:12px; padding:18px;
+                  box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    .chart-card h4 { font-size:14px; font-weight:700; color:#3E2723; margin-bottom:14px; }
+    .bar-chart  { display:flex; align-items:flex-end; gap:8px; height:100px; }
+    .bar { flex:1; background:var(--red); border-radius:4px 4px 0 0;
+           transition:height .4s; position:relative; cursor:pointer; }
+    .bar:hover::after { content:attr(data-label); position:absolute; top:-22px; left:50%;
+      transform:translateX(-50%); background:#3E2723; color:#fff;
+      padding:2px 7px; border-radius:4px; font-size:10px; white-space:nowrap; }
+    .bar-labels { display:flex; gap:8px; margin-top:5px; }
+    .bar-label  { flex:1; text-align:center; font-size:10px; color:#aaa; }
+
+    .donut-wrap { display:flex; gap:16px; align-items:center; }
+    .donut-legend { display:flex; flex-direction:column; gap:7px; flex:1; }
+    .legend-item { display:flex; align-items:center; gap:7px; font-size:12px; }
+    .legend-dot  { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+    /* ── Data table ───────────────────────────────────────────── */
+    .data-card { background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.07);
+                 margin-bottom:20px; overflow:hidden; }
+    .data-card-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 18px; border-bottom:1px solid #f0f0f0;
+    }
+    .data-card-header h4 { font-size:15px; font-weight:700; color:#3E2723; }
+    .data-card-header .actions { display:flex; gap:8px; }
+
+    .search-sm { padding:7px 12px; border:1.5px solid #e0e0e0; border-radius:8px;
+                 font-size:13px; outline:none; width:180px; }
+    .search-sm:focus { border-color:#D32F2F; }
+
+    table { width:100%; border-collapse:collapse; }
+    th    { padding:10px 14px; text-align:left; font-size:11px; font-weight:700;
+            color:#888; text-transform:uppercase; letter-spacing:.8px;
+            background:#fafafa; border-bottom:2px solid #f0f0f0; }
+    td    { padding:11px 14px; font-size:13px; border-bottom:1px solid #f7f7f7; }
+    tr:hover td { background:#fff8f8; }
+
+    .badge-role { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .role-customer { background:#FFF8E1; color:#FF6F00; }
+    .role-cook     { background:#FFF3E0; color:#D32F2F; }
+    .role-driver   { background:#E8F5E9; color:#2E7D32; }
+    .role-admin    { background:#E8EAF6; color:#3949AB; }
+
+    .badge-status { padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+    .s-active   { background:#E8F5E9; color:#2E7D32; }
+    .s-inactive { background:#FFEBEE; color:#C62828; }
+
+    .btn-tbl { padding:5px 12px; border-radius:6px; border:none; font-size:12px;
+               font-weight:600; cursor:pointer; transition:all .15s; }
+    .btn-approve { background:#E8F5E9; color:#2E7D32; }
+    .btn-suspend { background:#FFEBEE; color:#C62828; }
+    .btn-approve:hover { background:#2E7D32; color:#fff; }
+    .btn-suspend:hover { background:#C62828; color:#fff; }
+    .btn-view    { background:#E3F2FD; color:#1565C0; }
+    .btn-view:hover { background:#1565C0; color:#fff; }
+
+    /* ── Section panels ───────────────────────────────────────── */
+    .panel { display:none; }
+    .panel.active { display:block; }
+
+    /* ── Activity feed ───────────────────────────────────────── */
+    .activity-feed { max-height:280px; overflow-y:auto; }
+    .activity-item {
+      display:flex; gap:12px; align-items:flex-start;
+      padding:10px 0; border-bottom:1px solid #f5f5f5;
+    }
+    .activity-icon { width:34px; height:34px; border-radius:50%;
+                     display:flex; align-items:center; justify-content:center;
+                     font-size:16px; flex-shrink:0; }
+    .activity-text { flex:1; }
+    .activity-text p { font-size:13px; color:#333; }
+    .activity-text span { font-size:11px; color:#aaa; }
+
+    @media(max-width:700px) {
+      .sidebar  { display:none; }
+      .charts-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="admin-layout">
+
+  <!-- ══════════════ SIDEBAR ══════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div><span class="kasi">KASI</span> <span class="flavour">FLAVOUR</span></div>
+      <div class="role-tag">Admin Panel</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showPanel('overview',this)">
+        <span class="icon">📊</span> Overview
+      </button>
+      <button class="nav-item" onclick="showPanel('users',this)">
+        <span class="icon">👥</span> Users
+      </button>
+      <button class="nav-item" onclick="showPanel('cooks',this)">
+        <span class="icon">👨‍🍳</span> Cooks
+      </button>
+      <button class="nav-item" onclick="showPanel('orders',this)">
+        <span class="icon">📦</span> Orders
+      </button>
+      <button class="nav-item" onclick="showPanel('menus',this)">
+        <span class="icon">🍽</span> Menu Items
+      </button>
+      <button class="nav-item" onclick="showPanel('drivers',this)">
+        <span class="icon">🚴</span> Drivers
+      </button>
+      <button class="nav-item" onclick="showPanel('reports',this)">
+        <span class="icon">📈</span> Reports
+      </button>
+      <button class="nav-item" onclick="showPanel('settings',this)">
+        <span class="icon">⚙️</span> Settings
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button onclick="goBack()">← Back to store</button>
+      <button onclick="logout()" style="margin-top:6px">🚪 Log out</button>
+    </div>
+  </aside>
+
+  <!-- ══════════════ MAIN ═════════════════════════════════════════ -->
+  <main class="admin-main">
+
+    <!-- ── OVERVIEW ──────────────────────────────────────────── -->
+    <div id="panel-overview" class="panel active">
+      <div class="page-header">
+        <h2>Platform Overview</h2>
+        <p>Real-time snapshot of Kasi Flavour</p>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card" style="--clr:#D32F2F">
+          <div class="s-label">Total Orders</div>
+          <div class="s-val" id="ov-orders">–</div>
+          <div class="s-sub">All time</div>
+        </div>
+        <div class="stat-card" style="--clr:#E64A19">
+          <div class="s-label">Revenue</div>
+          <div class="s-val" id="ov-revenue">–</div>
+          <div class="s-sub">Platform earnings</div>
+        </div>
+        <div class="stat-card" style="--clr:#FF6F00">
+          <div class="s-label">Users</div>
+          <div class="s-val" id="ov-users">–</div>
+          <div class="s-sub">Registered</div>
+        </div>
+        <div class="stat-card" style="--clr:#4CAF50">
+          <div class="s-label">Active Cooks</div>
+          <div class="s-val" id="ov-cooks">–</div>
+          <div class="s-sub">Serving today</div>
+        </div>
+        <div class="stat-card" style="--clr:#2196F3">
+          <div class="s-label">Active Drivers</div>
+          <div class="s-val" id="ov-drivers">–</div>
+          <div class="s-sub">Online now</div>
+        </div>
+        <div class="stat-card" style="--clr:#9C27B0">
+          <div class="s-label">Menu Items</div>
+          <div class="s-val" id="ov-items">–</div>
+          <div class="s-sub">Listed</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <h4>📦 Orders – Last 7 Days</h4>
+          <div class="bar-chart" id="orders-chart"></div>
+          <div class="bar-labels" id="orders-chart-labels"></div>
+        </div>
+        <div class="chart-card">
+          <h4>👤 Users by Role</h4>
+          <div class="donut-wrap">
+            <svg id="donut-svg" width="110" height="110" viewBox="0 0 36 36"></svg>
+            <div class="donut-legend" id="donut-legend"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent activity -->
+      <div class="data-card">
+        <div class="data-card-header"><h4>🕐 Recent Activity</h4></div>
+        <div style="padding:4px 18px 14px">
+          <div class="activity-feed" id="activity-feed">
+            <p style="color:#aaa;font-size:13px;padding:12px 0">Loading activity…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── USERS ─────────────────────────────────────────────── -->
+    <div id="panel-users" class="panel">
+      <div class="page-header"><h2>Users</h2><p>Manage all registered users</p></div>
+      <div class="data-card">
+        <div class="data-card-header">
+          <h4>All Users <span id="users-count" style="color:#aaa;font-size:13px;font-weight:400"></span></h4>
+          <div class="actions">
+            <input class="search-sm" placeholder="Search name / phone…" oninput="filterTable('users-table',this.value)"/>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="users-table">
+            <thead>
+              <tr><th>Name</th><th>Phone</th><th>Role</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── COOKS ─────────────────────────────────────────────── -->
+    <div id="panel-cooks" class="panel">
+      <div class="page-header"><h2>Cooks</h2><p>Approve and manage cook accounts</p></div>
+      <div class="data-card">
+        <div class="data-card-header">
+          <h4>All Cooks</h4>
+          <div class="actions">
+            <input class="search-sm" placeholder="Search cook…" oninput="filterTable('cooks-table',this.value)"/>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="cooks-table">
+            <thead>
+              <tr><th>Cook</th><th>Kasi</th><th>Rating</th><th>Badges</th><th>Items</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="cooks-tbody">
+              <tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ORDERS ────────────────────────────────────────────── -->
+    <div id="panel-orders" class="panel">
+      <div class="page-header"><h2>Orders</h2><p>All platform orders</p></div>
+      <div class="data-card">
+        <div class="data-card-header">
+          <h4>All Orders</h4>
+          <div class="actions">
+            <select id="order-status-filter" class="search-sm" onchange="loadAdminOrders()">
+              <option value="">All statuses</option>
+              <option>pending</option><option>confirmed</option>
+              <option>preparing</option><option>picked_up</option>
+              <option>delivered</option><option>cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Customer</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="orders-tbody">
+              <tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── MENU ITEMS ─────────────────────────────────────────── -->
+    <div id="panel-menus" class="panel">
+      <div class="page-header"><h2>Menu Items</h2><p>All listed meals across all cooks</p></div>
+      <div class="data-card">
+        <div class="data-card-header">
+          <h4>All Meals</h4>
+          <div class="actions">
+            <input class="search-sm" placeholder="Search meals…" oninput="filterTable('menus-table',this.value)"/>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table id="menus-table">
+            <thead>
+              <tr><th>Photo</th><th>Name</th><th>Cook</th><th>Price</th><th>Tags</th><th>Flash</th><th>Available</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="menus-tbody">
+              <tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DRIVERS ───────────────────────────────────────────── -->
+    <div id="panel-drivers" class="panel">
+      <div class="page-header"><h2>Drivers</h2><p>Manage delivery drivers</p></div>
+      <div class="data-card">
+        <div class="data-card-header"><h4>All Drivers</h4></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Rating</th><th>Available</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="drivers-tbody">
+              <tr><td colspan="6" style="text-align:center;color:#aaa;padding:24px">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REPORTS ────────────────────────────────────────────── -->
+    <div id="panel-reports" class="panel">
+      <div class="page-header"><h2>Reports</h2><p>Platform performance</p></div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <h4>💰 Revenue – Last 30 Days</h4>
+          <div class="bar-chart" id="revenue-chart"></div>
+        </div>
+        <div class="chart-card">
+          <h4>🍽 Top Selling Meals</h4>
+          <div id="top-meals"></div>
+        </div>
+      </div>
+      <div class="data-card">
+        <div class="data-card-header"><h4>📊 Summary Stats</h4></div>
+        <div style="padding:16px 18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+          <div style="text-align:center">
+            <p style="font-size:28px;font-weight:800;color:#D32F2F" id="r-avg-order">–</p>
+            <p style="font-size:12px;color:#888">Avg. order value</p>
+          </div>
+          <div style="text-align:center">
+            <p style="font-size:28px;font-weight:800;color:#FF6F00" id="r-delivery-fee">–</p>
+            <p style="font-size:12px;color:#888">Total delivery fees</p>
+          </div>
+          <div style="text-align:center">
+            <p style="font-size:28px;font-weight:800;color:#4CAF50" id="r-commission">–</p>
+            <p style="font-size:12px;color:#888">Platform commission (10%)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ───────────────────────────────────────────── -->
+    <div id="panel-settings" class="panel">
+      <div class="page-header"><h2>Settings</h2><p>Platform configuration</p></div>
+      <div class="data-card" style="padding:22px">
+        <div style="max-width:420px">
+          <div style="margin-bottom:18px">
+            <label style="font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:6px">
+              Delivery fee (R)
+            </label>
+            <input id="s-delivery-fee" type="number" value="8"
+              style="padding:10px 13px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;width:100%;outline:none"/>
+          </div>
+          <div style="margin-bottom:18px">
+            <label style="font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:6px">
+              Platform commission (%)
+            </label>
+            <input id="s-commission" type="number" value="10"
+              style="padding:10px 13px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;width:100%;outline:none"/>
+          </div>
+          <div style="margin-bottom:18px">
+            <label style="font-size:12px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:6px">
+              Flash deal duration (minutes)
+            </label>
+            <input id="s-flash-duration" type="number" value="60"
+              style="padding:10px 13px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;width:100%;outline:none"/>
+          </div>
+          <button class="btn-primary" style="width:auto;padding:10px 24px" onclick="alert('Settings saved! ✅')">
+            Save Settings
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="./js/api.js"></script>
+<script>
+  const TOKEN = localStorage.getItem("kf_token");
+  // Auth guard - admin only
+  if (!TOKEN) window.location.href = "index.html";
+  // In production check role === 'admin', for hackathon allow any logged-in user
+
+  const API = "http://localhost:8000/api";
+
+  async function apiFetch(path) {
+    const res = await fetch(API + path, { headers:{"Authorization":"Bearer "+TOKEN} });
+    if (!res.ok) throw new Error(res.status);
+    return res.json();
+  }
+
+  /* ═══ Panel navigation ══════════════════════════════════════ */
+  function showPanel(name, btn) {
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+    document.getElementById("panel-"+name).classList.add("active");
+    btn.classList.add("active");
+
+    // Lazy-load panel data
+    const loaders = {
+      overview: loadOverview,
+      users:    loadUsers,
+      cooks:    loadCooks,
+      orders:   loadAdminOrders,
+      menus:    loadAdminMenus,
+      drivers:  loadDrivers,
+      reports:  loadReports,
+    };
+    loaders[name]?.();
+  }
+
+  function goBack()  { window.location.href = "index.html"; }
+  function logout()  { ["kf_token","kf_role","kf_name"].forEach(k=>localStorage.removeItem(k)); window.location.href="index.html"; }
+
+  /* ═══ Overview ═════════════════════════════════════════════ */
+  async function loadOverview() {
+    try {
+      const [orders, users, menus] = await Promise.all([
+        apiFetch("/orders"), apiFetch("/users/1"), apiFetch("/menus")
+      ]);
+      const totalOrders  = orders.length;
+      const totalRev     = orders.reduce((s,o) => s + (o.total||0), 0);
+      document.getElementById("ov-orders").textContent  = totalOrders;
+      document.getElementById("ov-revenue").textContent = "R" + totalRev.toFixed(0);
+      document.getElementById("ov-items").textContent   = menus.length;
+      document.getElementById("ov-users").textContent   = "–";
+      document.getElementById("ov-cooks").textContent   = "–";
+      document.getElementById("ov-drivers").textContent = "–";
+      drawOrdersChart(orders);
+      drawRoleDonut([
+        { label:"Customers", val:70, color:"#D32F2F" },
+        { label:"Cooks",     val:20, color:"#FF6F00" },
+        { label:"Drivers",   val:10, color:"#4CAF50" },
+      ]);
+      loadActivity(orders);
+    } catch(e) {
+      // Show demo data if server not running
+      document.getElementById("ov-orders").textContent  = "247";
+      document.getElementById("ov-revenue").textContent = "R18,430";
+      document.getElementById("ov-users").textContent   = "1,204";
+      document.getElementById("ov-cooks").textContent   = "38";
+      document.getElementById("ov-drivers").textContent = "22";
+      document.getElementById("ov-items").textContent   = "183";
+      drawOrdersChart([]);
+      drawRoleDonut([
+        { label:"Customers", val:70, color:"#D32F2F" },
+        { label:"Cooks",     val:20, color:"#FF6F00" },
+        { label:"Drivers",   val:10, color:"#4CAF50" },
+      ]);
+      loadActivity([]);
+    }
+  }
+
+  function drawOrdersChart(orders) {
+    const days   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const counts = days.map((_,i) => Math.floor(Math.random()*30)+5 + (orders.length ? 0 : 0));
+    const max    = Math.max(...counts);
+    const chart  = document.getElementById("orders-chart");
+    const labels = document.getElementById("orders-chart-labels");
+    if (!chart) return;
+    chart.innerHTML  = counts.map((c,i) =>
+      `<div class="bar" style="height:${(c/max)*90}%;background:${i===new Date().getDay()-1?'#FF6F00':'#D32F2F'}"
+            data-label="${days[i]}: ${c} orders"></div>`
+    ).join("");
+    if (labels) labels.innerHTML = days.map(d=>`<div class="bar-label">${d}</div>`).join("");
+  }
+
+  function drawRoleDonut(segments) {
+    const svg    = document.getElementById("donut-svg");
+    const legend = document.getElementById("donut-legend");
+    if (!svg) return;
+    const total = segments.reduce((s,seg) => s+seg.val, 0);
+    let offset  = 25; // start at top
+    const r=15.915, cx=18, cy=18;
+    svg.innerHTML = segments.map(seg => {
+      const pct  = seg.val/total*100;
+      const dash = `${pct} ${100-pct}`;
+      const el   = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}"
+                     stroke-width="4" stroke-dasharray="${dash}"
+                     stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset -= pct;
+      return el;
+    }).join("") + `<text x="${cx}" y="${cy+1}" text-anchor="middle"
+      dominant-baseline="central" font-size="5" font-weight="700" fill="#3E2723">${total}%</text>`;
+    if (legend) legend.innerHTML = segments.map(s =>
+      `<div class="legend-item">
+         <div class="legend-dot" style="background:${s.color}"></div>
+         <span>${s.label} – ${s.val}%</span>
+       </div>`).join("");
+  }
+
+  function loadActivity(orders) {
+    const feed = document.getElementById("activity-feed");
+    if (!feed) return;
+    const activities = [
+      { icon:"🛒", bg:"#FFF8E1", text:"New order #247 placed — R65.00", time:"2 min ago" },
+      { icon:"👨‍🍳", bg:"#FFF3E0", text:"Mama Zondo's Kitchen joined as a cook", time:"15 min ago" },
+      { icon:"✅", bg:"#E8F5E9", text:"Order #245 delivered successfully", time:"28 min ago" },
+      { icon:"🚴", bg:"#E3F2FD", text:"Driver Sipho came online in Soweto", time:"34 min ago" },
+      { icon:"⭐", bg:"#F3E5F5", text:"New 5-star review for Pap & Wors", time:"1 hr ago" },
+      { icon:"⏱", bg:"#FFEBEE", text:"Flash deal expired for Umngqusho", time:"2 hr ago" },
+    ];
+    feed.innerHTML = activities.map(a => `
+      <div class="activity-item">
+        <div class="activity-icon" style="background:${a.bg}">${a.icon}</div>
+        <div class="activity-text"><p>${a.text}</p><span>${a.time}</span></div>
+      </div>`).join("");
+  }
+
+  /* ═══ Users ════════════════════════════════════════════════ */
+  async function loadUsers() {
+    // Demo data — replace with apiFetch("/users") when endpoint added
+    const demoUsers = [
+      { id:1, name:"Simanga Mchunu",     phone:"0821234567", role:"admin",    created_at:"2025-01-10", active:true },
+      { id:2, name:"Patience Mabuza",    phone:"0731234567", role:"cook",     created_at:"2025-01-12", active:true },
+      { id:3, name:"Sipho Dlamini",      phone:"0761234567", role:"driver",   created_at:"2025-01-14", active:true },
+      { id:4, name:"Nomsa Khumalo",      phone:"0651234567", role:"customer", created_at:"2025-01-15", active:true },
+      { id:5, name:"Thabo Nkosi",        phone:"0791234567", role:"customer", created_at:"2025-01-16", active:false },
+    ];
+    document.getElementById("users-count").textContent = `(${demoUsers.length})`;
+    document.getElementById("users-tbody").innerHTML = demoUsers.map(u => `
+      <tr>
+        <td><strong>${u.name}</strong></td>
+        <td>${u.phone}</td>
+        <td><span class="badge-role role-${u.role}">${u.role}</span></td>
+        <td>${new Date(u.created_at).toLocaleDateString("en-ZA")}</td>
+        <td><span class="badge-status ${u.active?"s-active":"s-inactive"}">${u.active?"Active":"Suspended"}</span></td>
+        <td style="display:flex;gap:5px">
+          <button class="btn-tbl btn-view">View</button>
+          <button class="btn-tbl ${u.active?"btn-suspend":"btn-approve"}" onclick="toggleUser(${u.id},${!u.active})">
+            ${u.active?"Suspend":"Restore"}
+          </button>
+        </td>
+      </tr>`).join("");
+  }
+
+  function toggleUser(id, activate) {
+    alert(`User #${id} ${activate?"restored":"suspended"}. (Connect to /api/users/${id}/status)`);
+    loadUsers();
+  }
+
+  /* ═══ Cooks ════════════════════════════════════════════════ */
+  async function loadCooks() {
+    const demoCooks = [
+      { id:1, name:"Mama Zondo",    kasi:"Soweto",    rating:4.9, badges:"🌶 👑", items:8,  active:true },
+      { id:2, name:"Aunty Thandi",  kasi:"Alexandra", rating:4.7, badges:"⚡",    items:5,  active:true },
+      { id:3, name:"Bra Mike",      kasi:"Tembisa",   rating:4.5, badges:"👑",    items:12, active:false },
+    ];
+    document.getElementById("cooks-tbody").innerHTML = demoCooks.map(c => `
+      <tr>
+        <td><strong>${c.name}</strong></td>
+        <td>${c.kasi}</td>
+        <td>${c.rating} ⭐</td>
+        <td>${c.badges}</td>
+        <td>${c.items}</td>
+        <td><span class="badge-status ${c.active?"s-active":"s-inactive"}">${c.active?"Active":"Pending"}</span></td>
+        <td style="display:flex;gap:5px">
+          <button class="btn-tbl btn-view">View</button>
+          <button class="btn-tbl ${c.active?"btn-suspend":"btn-approve"}">${c.active?"Suspend":"Approve"}</button>
+        </td>
+      </tr>`).join("");
+  }
+
+  /* ═══ Orders ═══════════════════════════════════════════════ */
+  async function loadAdminOrders() {
+    try {
+      const orders = await apiFetch("/orders");
+      renderOrdersTable(orders);
+    } catch {
+      const demo = [
+        { id:247, customer_id:4, total:65, payment_method:"cash",  status:"pending",   created_at:"2025-06-13T10:05:00" },
+        { id:246, customer_id:3, total:89, payment_method:"card",  status:"delivered", created_at:"2025-06-13T09:30:00" },
+        { id:245, customer_id:2, total:45, payment_method:"cash",  status:"delivered", created_at:"2025-06-13T08:55:00" },
+      ];
+      renderOrdersTable(demo);
+    }
+  }
+
+  function renderOrdersTable(orders) {
+    const filter = document.getElementById("order-status-filter")?.value || "";
+    const filtered = filter ? orders.filter(o=>o.status===filter) : orders;
+    document.getElementById("orders-tbody").innerHTML = filtered.map(o => `
+      <tr>
+        <td><strong>#${o.id}</strong></td>
+        <td>User #${o.customer_id}</td>
+        <td>R${(o.total||0).toFixed(2)}</td>
+        <td>${o.payment_method}</td>
+        <td><span class="badge-status ${["delivered"].includes(o.status)?"s-active":"s-inactive"}">${o.status}</span></td>
+        <td>${new Date(o.created_at).toLocaleString("en-ZA")}</td>
+        <td><button class="btn-tbl btn-view" onclick="alert('Order #${o.id} detail — connect to /api/orders/${o.id}')">View</button></td>
+      </tr>`).join("");
+  }
+
+  /* ═══ Menu Items ═══════════════════════════════════════════ */
+  async function loadAdminMenus() {
+    try {
+      const items = await apiFetch("/menus");
+      document.getElementById("menus-tbody").innerHTML = items.map(item => `
+        <tr>
+          <td>${item.image_url
+            ? `<img src="http://localhost:8000${item.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px"/>`
+            : `<div style="width:44px;height:44px;background:var(--cream);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px">🍽</div>`
+          }</td>
+          <td><strong>${item.name}</strong></td>
+          <td>Cook #${item.cook_id}</td>
+          <td>R${item.price.toFixed(2)}</td>
+          <td style="font-size:11px;color:#888">${item.cuisine_tags||"–"}</td>
+          <td>${item.is_flash_deal?"⚡ Yes":"–"}</td>
+          <td><span class="badge-status ${item.available?"s-active":"s-inactive"}">${item.available?"Live":"Hidden"}</span></td>
+          <td><button class="btn-tbl btn-suspend" onclick="adminRemoveItem(${item.id})">Remove</button></td>
+        </tr>`).join("");
+    } catch { document.getElementById("menus-tbody").innerHTML = `<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">Could not load menu items.</td></tr>`; }
+  }
+
+  async function adminRemoveItem(id) {
+    if (!confirm("Remove this meal from the platform?")) return;
+    await fetch(`${API}/menus/${id}`, { method:"DELETE", headers:{"Authorization":"Bearer "+TOKEN}});
+    loadAdminMenus();
+  }
+
+  /* ═══ Drivers ══════════════════════════════════════════════ */
+  function loadDrivers() {
+    const demo = [
+      { name:"Sipho Dlamini", phone:"0761234567", vehicle:"motorbike", rating:4.8, available:true  },
+      { name:"Kagiso Sithole",phone:"0751234567", vehicle:"bicycle",   rating:4.6, available:false },
+      { name:"Lerato Mokoena",phone:"0841234567", vehicle:"motorbike", rating:4.7, available:true  },
+    ];
+    document.getElementById("drivers-tbody").innerHTML = demo.map(d => `
+      <tr>
+        <td><strong>${d.name}</strong></td>
+        <td>${d.phone}</td>
+        <td>${d.vehicle}</td>
+        <td>${d.rating} ⭐</td>
+        <td><span class="badge-status ${d.available?"s-active":"s-inactive"}">${d.available?"Online":"Offline"}</span></td>
+        <td><button class="btn-tbl btn-view">View</button></td>
+      </tr>`).join("");
+  }
+
+  /* ═══ Reports ══════════════════════════════════════════════ */
+  function loadReports() {
+    const rev = [120,180,95,220,310,175,250,190,280,340];
+    const max = Math.max(...rev);
+    const rc  = document.getElementById("revenue-chart");
+    if (rc) rc.innerHTML = rev.map(v=>
+      `<div class="bar" style="height:${(v/max)*90}%;background:#FF6F00" data-label="R${v}"></div>`
+    ).join("");
+
+    const tops = [
+      { name:"Pap & Wors",       orders:42 },
+      { name:"Umngqusho",         orders:35 },
+      { name:"Braai Chicken",     orders:29 },
+      { name:"Chakalaka Rice",    orders:24 },
+    ];
+    const tm = document.getElementById("top-meals");
+    if (tm) tm.innerHTML = tops.map((t,i) => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:18px;font-weight:800;color:#D32F2F;min-width:24px">${i+1}</span>
+        <div style="flex:1">
+          <p style="font-size:13px;font-weight:700">${t.name}</p>
+          <div style="height:6px;background:#f0f0f0;border-radius:3px;margin-top:3px">
+            <div style="height:6px;background:#D32F2F;border-radius:3px;width:${(t.orders/42)*100}%"></div>
+          </div>
+        </div>
+        <span style="font-size:13px;color:#888">${t.orders}</span>
+      </div>`).join("");
+
+    document.getElementById("r-avg-order").textContent = "R74.50";
+    document.getElementById("r-delivery-fee").textContent = "R1,976";
+    document.getElementById("r-commission").textContent = "R1,843";
+  }
+
+  /* ═══ Table search ════════════════════════════════════════ */
+  function filterTable(tableId, query) {
+    const q = query.toLowerCase();
+    document.querySelectorAll(`#${tableId} tbody tr`).forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? "" : "none";
+    });
+  }
+
+  /* ═══ Init ════════════════════════════════════════════════ */
+  loadOverview();
+</script>
+</body>
+</html>

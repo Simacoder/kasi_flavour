@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kasi Flavour – My Orders</title>
+  <link rel="stylesheet" href="./css/main.css"/>
+  <style>
+    .orders-wrap { max-width: 720px; margin: 0 auto; padding: 28px 20px; }
+
+    .order-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .order-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px;
+      background: #3E2723;
+      color: #fff;
+    }
+    .order-card-header h4 { font-size: 15px; font-weight: 700; }
+    .order-card-header span { font-size: 12px; opacity: .7; }
+
+    .order-card-body { padding: 16px 18px; }
+
+    .status-badge {
+      display: inline-block; padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 700; text-transform: capitalize;
+      margin-bottom: 10px;
+    }
+    .status-pending   { background:#FFF8E1; color:#FF6F00; border:1.5px solid #FFD54F; }
+    .status-preparing { background:#FFF3E0; color:#E64A19; border:1.5px solid #FFAB91; }
+    .status-picked_up { background:#E3F2FD; color:#1565C0; border:1.5px solid #90CAF9; }
+    .status-delivered { background:#E8F5E9; color:#2E7D32; border:1.5px solid #A5D6A7; }
+    .status-cancelled { background:#FFEBEE; color:#C62828; border:1.5px solid #EF9A9A; }
+    .status-confirmed { background:#F3E5F5; color:#6A1B9A; border:1.5px solid #CE93D8; }
+    .status-ready     { background:#E0F7FA; color:#00695C; border:1.5px solid #80DEEA; }
+
+    .order-items-list { font-size: 13px; color: #555; margin-bottom: 12px; }
+    .order-items-list li { padding: 3px 0; border-bottom: 1px solid #f5f5f5; }
+
+    .order-card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 18px; background: #FFFDE7; border-top: 1px solid #f0f0f0;
+    }
+    .order-total { font-size: 17px; font-weight: 800; color: #D32F2F; }
+
+    .btn-track {
+      padding: 9px 18px; background: #D32F2F; color: #fff;
+      border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+      cursor: pointer; text-decoration: none; display: inline-block;
+      transition: background .15s;
+    }
+    .btn-track:hover { background: #E64A19; }
+    .btn-track.disabled { background: #ccc; cursor: default; pointer-events: none; }
+
+    .empty-state {
+      text-align: center; padding: 60px 20px; color: #aaa;
+    }
+    .empty-state .icon { font-size: 56px; margin-bottom: 12px; }
+    .empty-state p     { font-size: 15px; }
+    .empty-state a     { color: #D32F2F; font-weight: 600; text-decoration: none; }
+
+    .page-title {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .page-title h2 { font-size: 22px; font-weight: 700; color: #3E2723; }
+
+    .filter-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+    .filter-btn { padding:6px 14px; border-radius:20px; border:1.5px solid #ddd;
+                  background:#fff; font-size:13px; cursor:pointer; transition:all .15s; }
+    .filter-btn.active { background:#D32F2F; color:#fff; border-color:#D32F2F; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="brand-kasi">KASI</span>
+    <span class="brand-flavour">FLAVOUR</span>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">Browse</a>
+    <a href="orders.html" class="active">My Orders</a>
+    <a href="seller.html" id="nav-seller" style="display:none">Dashboard</a>
+  </div>
+  <button onclick="logout()" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:13px;">
+    Log out
+  </button>
+</nav>
+
+<div class="orders-wrap">
+  <div class="page-title">
+    <h2>📦 My Orders</h2>
+    <a href="index.html" style="font-size:13px;color:#D32F2F;text-decoration:none;font-weight:600;">+ New order</a>
+  </div>
+
+  <!-- Filter pills -->
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterOrders('all',this)">All</button>
+    <button class="filter-btn" onclick="filterOrders('active',this)">Active</button>
+    <button class="filter-btn" onclick="filterOrders('delivered',this)">Delivered</button>
+    <button class="filter-btn" onclick="filterOrders('cancelled',this)">Cancelled</button>
+  </div>
+
+  <div id="orders-container">
+    <p class="loading">Loading your orders…</p>
+  </div>
+</div>
+
+<script src="./js/api.js"></script>
+<script>
+  let allOrders = [];
+
+  // Show seller nav link for cooks
+  if (localStorage.getItem("kf_role") === "cook") {
+    document.getElementById("nav-seller").style.display = "block";
+  }
+
+  function logout() {
+    localStorage.removeItem("kf_token");
+    localStorage.removeItem("kf_role");
+    window.location.href = "login.html";
+  }
+
+  async function loadOrders() {
+    const token = localStorage.getItem("kf_token");
+    if (!token) { window.location.href = "login.html"; return; }
+
+    try {
+      // ── FIX: use GET /api/orders with Authorization header ────────────────
+      const res = await fetch("http://localhost:8000/api/orders", {
+        method:  "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type":  "application/json",
+        },
+      });
+
+      if (res.status === 401) { window.location.href = "login.html"; return; }
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+      allOrders = await res.json();
+      renderOrders(allOrders);
+    } catch (e) {
+      document.getElementById("orders-container").innerHTML =
+        `<div class="empty-state">
+           <div class="icon">⚠️</div>
+           <p>Could not load orders.<br><small style="color:#D32F2F">${e.message}</small></p>
+           <p style="margin-top:8px">Make sure the server is running on port 8000.</p>
+         </div>`;
+    }
+  }
+
+  function filterOrders(filter, btn) {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const activeStatuses = ["pending","confirmed","preparing","ready","picked_up"];
+    let filtered = allOrders;
+    if (filter === "active")    filtered = allOrders.filter(o => activeStatuses.includes(o.status));
+    if (filter === "delivered") filtered = allOrders.filter(o => o.status === "delivered");
+    if (filter === "cancelled") filtered = allOrders.filter(o => o.status === "cancelled");
+    renderOrders(filtered);
+  }
+
+  function renderOrders(orders) {
+    const el = document.getElementById("orders-container");
+    if (!orders.length) {
+      el.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">🍽</div>
+          <p>No orders yet.<br><a href="index.html">Browse meals and place your first order!</a></p>
+        </div>`;
+      return;
+    }
+
+    const activeStatuses = ["pending","confirmed","preparing","ready","picked_up"];
+
+    el.innerHTML = orders.map(order => {
+      const isActive   = activeStatuses.includes(order.status);
+      const canTrack   = ["picked_up","preparing","confirmed"].includes(order.status);
+      const date       = new Date(order.created_at).toLocaleString("en-ZA", {
+        day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"
+      });
+
+      // Status icon map
+      const statusIcons = {
+        pending:"⏳", confirmed:"✅", preparing:"👨‍🍳",
+        ready:"🍱", picked_up:"🚴", delivered:"🎉", cancelled:"❌"
+      };
+
+      return `
+        <div class="order-card">
+          <div class="order-card-header">
+            <h4>Order #${order.id}</h4>
+            <span>${date}</span>
+          </div>
+          <div class="order-card-body">
+            <div class="status-badge status-${order.status}">
+              ${statusIcons[order.status] || "•"} ${order.status.replace("_"," ")}
+            </div>
+            <p style="font-size:13px;color:#888;margin-bottom:10px">
+              Payment: ${order.payment_method || "cash"}
+            </p>
+            ${order.delivery_address
+              ? `<p style="font-size:13px;color:#555;margin-bottom:10px">📍 ${order.delivery_address}</p>`
+              : ""}
+          </div>
+          <div class="order-card-footer">
+            <span class="order-total">R${order.total.toFixed(2)}</span>
+            ${canTrack
+              ? `<a href="track.html?order=${order.id}" class="btn-track">📡 Track order</a>`
+              : isActive
+                ? `<span class="btn-track disabled">⏳ Waiting…</span>`
+                : `<a href="index.html" class="btn-track" style="background:#FF6F00">Reorder</a>`
+            }
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  loadOrders();
+</script>
+</body>
+</html>
+

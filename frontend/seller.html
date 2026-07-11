@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kasi Flavour – Cook Dashboard</title>
+  <link rel="stylesheet" href="./css/main.css"/>
+  <style>
+    body { background:#f5f5f5; }
+    .wrap { max-width:960px; margin:0 auto; padding:24px 16px; }
+
+    /* Stats */
+    .stat-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px; }
+    .stat-card { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.08); border-top:4px solid var(--red); }
+    .stat-label { font-size:11px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:1px; }
+    .stat-val   { font-size:26px; font-weight:800; color:#3E2723; margin-top:4px; }
+
+    /* Section headers */
+    .sec-title { font-size:17px; font-weight:700; color:#3E2723; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
+
+    /* Order cards */
+    .order-card { background:#fff; border-radius:10px; padding:14px 16px; margin-bottom:10px;
+                  box-shadow:0 2px 8px rgba(0,0,0,.07); border-left:4px solid var(--orange);
+                  display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .order-info { flex:1; min-width:180px; }
+    .order-info h4 { font-size:14px; font-weight:700; margin-bottom:2px; }
+    .order-info p  { font-size:12px; color:#888; }
+    .chip { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; margin-left:6px; }
+    .chip-pending   { background:#FFF8E1; color:#FF6F00; }
+    .chip-confirmed { background:#F3E5F5; color:#6A1B9A; }
+    .chip-preparing { background:#FFF3E0; color:#E64A19; }
+    .chip-ready     { background:#E0F7FA; color:#00695C; }
+    .btn-action { padding:8px 16px; border-radius:8px; border:none; font-size:13px;
+                  font-weight:700; cursor:pointer; transition:background .15s; white-space:nowrap; }
+    .btn-confirm  { background:var(--amber); color:var(--dark-brown); }
+    .btn-cooking  { background:var(--orange); color:#fff; }
+    .btn-ready    { background:var(--red); color:#fff; }
+    .btn-confirm:hover { background:var(--orange); color:#fff; }
+
+    /* Add meal form */
+    .add-form { background:#fff; border-radius:12px; padding:22px; margin-bottom:20px;
+                box-shadow:0 2px 8px rgba(0,0,0,.08); border:2px solid var(--amber); display:none; }
+    .add-form h3 { font-size:16px; font-weight:700; color:#3E2723; margin-bottom:16px; }
+    .fgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media(max-width:560px) { .fgrid { grid-template-columns:1fr; } }
+    .full { grid-column:1/-1; }
+    .flabel { display:block; font-size:11px; font-weight:700; color:#666;
+              text-transform:uppercase; letter-spacing:.7px; margin-bottom:5px; }
+    .finput { width:100%; padding:10px 13px; border:1.5px solid #ddd;
+              border-radius:8px; font-size:14px; outline:none; transition:border-color .15s; }
+    .finput:focus { border-color:var(--red); }
+
+    /* Upload zone */
+    .upload-zone { border:2px dashed #FFD54F; border-radius:10px; padding:18px;
+                   text-align:center; cursor:pointer; background:#FFFDE7;
+                   position:relative; transition:all .15s; }
+    .upload-zone:hover { border-color:var(--orange); }
+    .upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+    .upload-zone .uz-icon { font-size:28px; }
+    .upload-zone p { font-size:13px; color:#888; margin-top:4px; }
+    #img-preview { width:100%; max-height:160px; object-fit:cover;
+                   border-radius:8px; margin-top:8px; display:none; }
+
+    /* Upload progress */
+    .upload-status { font-size:13px; margin-top:6px; font-weight:600; }
+    .upload-status.uploading { color:var(--orange); }
+    .upload-status.done      { color:#2E7D32; }
+    .upload-status.error     { color:var(--red); }
+
+    /* Menu grid */
+    .menu-grid2 { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+    .mcard { background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    .mcard-img { width:100%; height:130px; object-fit:cover; display:block; }
+    .mcard-placeholder { width:100%; height:130px; background:var(--cream);
+                         display:flex; align-items:center; justify-content:center; font-size:40px; }
+    .mcard-body { padding:12px; }
+    .mcard-body h4 { font-size:14px; font-weight:700; }
+    .mcard-body .price { font-size:16px; font-weight:800; color:var(--red); margin-top:3px; }
+    .mcard-body .tags  { font-size:11px; color:#aaa; margin-top:2px; }
+    .mcard-foot { display:flex; gap:6px; padding:8px 12px; border-top:1px solid #f0f0f0; }
+    .btn-sm { flex:1; padding:7px 0; border-radius:7px; border:none; font-size:12px;
+              font-weight:700; cursor:pointer; transition:all .15s; }
+    .btn-live   { background:#E8F5E9; color:#2E7D32; }
+    .btn-hidden { background:#FFF3E0; color:#E64A19; }
+    .btn-del    { background:#FFEBEE; color:var(--red); }
+    .btn-live:hover   { background:#2E7D32; color:#fff; }
+    .btn-del:hover    { background:var(--red); color:#fff; }
+
+    /* Flash badge */
+    .flash-badge { display:inline-block; background:var(--red); color:#fff;
+                   font-size:10px; font-weight:700; padding:2px 7px;
+                   border-radius:20px; margin-left:5px; }
+
+    /* Toast */
+    #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+             background:#3E2723; color:#fff; padding:12px 24px; border-radius:10px;
+             font-size:14px; font-weight:600; z-index:999; display:none;
+             box-shadow:0 4px 16px rgba(0,0,0,.25); }
+    #toast.show { display:block; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="navbar">
+  <div class="nav-brand" style="cursor:pointer" onclick="location.href='index.html'">
+    <span class="brand-kasi">KASI</span>
+    <span class="brand-flavour">FLAVOUR</span>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">🏠 Store</a>
+    <a href="orders.html">📦 Orders</a>
+    <a href="seller.html" class="active">👨‍🍳 Dashboard</a>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+    <span style="background:var(--red);color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">
+      👨‍🍳 Cook: <span id="cook-name">–</span>
+    </span>
+    <button onclick="logout()" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:13px">
+      Log out
+    </button>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- Stats row -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-label">Active Orders</div>
+      <div class="stat-val" id="s-active">–</div>
+    </div>
+    <div class="stat-card" style="border-color:var(--orange)">
+      <div class="stat-label">Menu Items</div>
+      <div class="stat-val" id="s-items">–</div>
+    </div>
+    <div class="stat-card" style="border-color:var(--amber)">
+      <div class="stat-label">Rating</div>
+      <div class="stat-val" id="s-rating">4.8 ⭐</div>
+    </div>
+    <div class="stat-card" style="border-color:#9C27B0">
+      <div class="stat-label">Badges</div>
+      <div class="stat-val" style="font-size:20px" id="s-badges">🌶 👑</div>
+    </div>
+  </div>
+
+  <!-- Active orders -->
+  <div style="margin-bottom:28px">
+    <div class="sec-title">
+      🔔 Active Orders
+      <span id="order-count-badge"
+        style="background:var(--red);color:#fff;padding:2px 9px;border-radius:20px;font-size:12px">0</span>
+    </div>
+    <div id="orders-list">
+      <p style="color:#aaa;font-size:14px">No active orders right now.</p>
+    </div>
+  </div>
+
+  <!-- Add meal button -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div class="sec-title" style="margin:0">🍽 My Menu</div>
+    <button class="btn-primary" style="width:auto;padding:9px 20px"
+      onclick="toggleForm()">+ Add New Meal</button>
+  </div>
+
+  <!-- Add meal form -->
+  <div id="add-form" class="add-form">
+    <h3>Add a New Meal</h3>
+
+    <div class="fgrid">
+      <!-- Name -->
+      <div>
+        <label class="flabel">Meal name *</label>
+        <input class="finput" id="f-name" placeholder="e.g. Mama's Pap & Wors"/>
+      </div>
+      <!-- Price -->
+      <div>
+        <label class="flabel">Price (R) *</label>
+        <input class="finput" id="f-price" type="number" min="1" placeholder="45"/>
+      </div>
+      <!-- Tags -->
+      <div>
+        <label class="flabel">Cuisine tags</label>
+        <input class="finput" id="f-tags" placeholder="pap, traditional, wors"/>
+      </div>
+      <!-- Description -->
+      <div>
+        <label class="flabel">Description</label>
+        <input class="finput" id="f-desc" placeholder="What makes this special?"/>
+      </div>
+
+      <!-- Flash deal -->
+      <div>
+        <label class="flabel">Flash deal?</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <input type="checkbox" id="f-flash" style="width:18px;height:18px;cursor:pointer"
+            onchange="document.getElementById('f-flash-row').style.display=this.checked?'block':'none'"/>
+          <label for="f-flash" style="font-size:13px;cursor:pointer">Make this a flash deal</label>
+        </div>
+        <div id="f-flash-row" style="display:none;margin-top:8px">
+          <input class="finput" id="f-flash-price" type="number" placeholder="Flash price (R)"/>
+        </div>
+      </div>
+
+      <!-- Image upload -->
+      <div>
+        <label class="flabel">Meal photo</label>
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="f-image" accept="image/*" onchange="handleImagePick(this)"/>
+          <div class="uz-icon">📸</div>
+          <p id="uz-text">Click or drag to upload a photo</p>
+        </div>
+        <div id="upload-status" class="upload-status"></div>
+        <img id="img-preview" src="" alt="Preview"/>
+      </div>
+
+      <!-- Submit buttons -->
+      <div class="full" style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn-primary" style="width:auto;padding:10px 26px" id="save-btn"
+          onclick="submitMeal()">💾 Save Meal</button>
+        <button onclick="toggleForm(true)" style="padding:10px 18px;border-radius:8px;
+          border:1.5px solid #ddd;background:#fff;cursor:pointer;font-size:14px">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu list -->
+  <div id="menu-list" class="menu-grid2">
+    <p class="loading">Loading your menu…</p>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<script>
+  const API   = "http://localhost:8000/api";
+  const TOKEN = localStorage.getItem("kf_token");
+  const NAME  = localStorage.getItem("kf_name") || "Cook";
+
+  // Auth guard
+  if (!TOKEN || localStorage.getItem("kf_role") !== "cook") {
+    window.location.href = "index.html";
+  }
+
+  document.getElementById("cook-name").textContent = NAME.split(" ")[0];
+
+  function logout() {
+    ["kf_token","kf_role","kf_name"].forEach(k => localStorage.removeItem(k));
+    window.location.href = "index.html";
+  }
+
+  function authHeaders(extra = {}) {
+    return { "Authorization": "Bearer " + TOKEN, ...extra };
+  }
+
+  function toast(msg, ok = true) {
+    const el = document.getElementById("toast");
+    el.textContent = (ok ? "✅ " : "❌ ") + msg;
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 3000);
+  }
+
+  // ── Toggle add form ────────────────────────────────────────────
+  function toggleForm(forceClose = false) {
+    const f = document.getElementById("add-form");
+    f.style.display = (forceClose || f.style.display !== "none") ? "none" : "block";
+    if (f.style.display === "block") f.scrollIntoView({ behavior:"smooth", block:"start" });
+  }
+
+  // ── Image: pick → preview (upload happens when Save is clicked) ─
+  let _pickedFile = null;
+
+  function handleImagePick(input) {
+    const file = input.files[0];
+    if (!file) return;
+    _pickedFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const prev = document.getElementById("img-preview");
+      prev.src   = e.target.result;
+      prev.style.display = "block";
+      document.getElementById("uz-text").textContent = "📸 " + file.name;
+      document.getElementById("upload-status").textContent = "";
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── Upload image → returns image_url string ────────────────────
+  async function uploadImage(file) {
+    const statusEl = document.getElementById("upload-status");
+    statusEl.className = "upload-status uploading";
+    statusEl.textContent = "Uploading image…";
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const res = await fetch(`${API}/menus/upload-image`, {
+      method:  "POST",
+      headers: authHeaders(),   // NO Content-Type — browser sets multipart boundary
+      body:    fd,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Image upload failed");
+    }
+
+    const data = await res.json();
+    statusEl.className = "upload-status done";
+    statusEl.textContent = "✅ Image uploaded";
+    return data.image_url;
+  }
+
+  // ── Submit new meal ────────────────────────────────────────────
+  async function submitMeal() {
+    const name  = document.getElementById("f-name").value.trim();
+    const price = parseFloat(document.getElementById("f-price").value);
+
+    if (!name)     { toast("Meal name is required", false); return; }
+    if (!price || price <= 0) { toast("Enter a valid price", false); return; }
+
+    const btn = document.getElementById("save-btn");
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+
+    try {
+      // 1️⃣ Upload image first (if one was picked)
+      let image_url = null;
+      if (_pickedFile) {
+        image_url = await uploadImage(_pickedFile);
+      }
+
+      // 2️⃣ Create menu item — cook_id resolved from JWT on server
+      const body = {
+        name,
+        price,
+        cuisine_tags:  document.getElementById("f-tags").value.trim(),
+        description:   document.getElementById("f-desc").value.trim(),
+        is_flash_deal: document.getElementById("f-flash").checked,
+        flash_price:   parseFloat(document.getElementById("f-flash-price").value) || null,
+        image_url,
+      };
+
+      const res = await fetch(`${API}/menus/`, {
+        method:  "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body:    JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Server error ${res.status}`);
+      }
+
+      toast("Meal saved! It's now live on the store 🎉");
+      resetForm();
+      toggleForm(true);
+      loadMenu();
+
+    } catch (e) {
+      toast(e.message, false);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "💾 Save Meal";
+    }
+  }
+
+  function resetForm() {
+    ["f-name","f-price","f-tags","f-desc","f-flash-price"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    document.getElementById("f-flash").checked = false;
+    document.getElementById("f-flash-row").style.display = "none";
+    document.getElementById("img-preview").style.display = "none";
+    document.getElementById("uz-text").textContent = "Click or drag to upload a photo";
+    document.getElementById("upload-status").textContent = "";
+    document.getElementById("f-image").value = "";
+    _pickedFile = null;
+  }
+
+  // ── Load active orders ─────────────────────────────────────────
+  async function loadOrders() {
+    try {
+      const res = await fetch(`${API}/orders`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const orders = await res.json();
+      const active = orders.filter(o =>
+        ["pending","confirmed","preparing","ready"].includes(o.status));
+
+      document.getElementById("order-count-badge").textContent = active.length;
+      document.getElementById("s-active").textContent = active.length;
+
+      const el = document.getElementById("orders-list");
+      if (!active.length) {
+        el.innerHTML = `<p style="color:#aaa;font-size:14px">No active orders — you're all caught up! 🎉</p>`;
+        return;
+      }
+      el.innerHTML = active.map(o => `
+        <div class="order-card">
+          <div class="order-info">
+            <h4>Order #${o.id}
+              <span class="chip chip-${o.status}">${o.status}</span>
+            </h4>
+            <p>R${o.total.toFixed(2)} · ${o.payment_method}
+               ${o.delivery_address ? " · " + o.delivery_address : ""}
+            </p>
+          </div>
+          ${o.status === "pending"   ? `<button class="btn-action btn-confirm" onclick="setStatus(${o.id},'confirmed')">✅ Confirm</button>` : ""}
+          ${o.status === "confirmed" ? `<button class="btn-action btn-cooking" onclick="setStatus(${o.id},'preparing')">👨‍🍳 Start cooking</button>` : ""}
+          ${o.status === "preparing" ? `<button class="btn-action btn-ready"   onclick="setStatus(${o.id},'ready')">🍱 Mark ready</button>` : ""}
+        </div>`).join("");
+    } catch(e) { /* silent */ }
+  }
+
+  async function setStatus(id, status) {
+    try {
+      await fetch(`${API}/orders/${id}/status?status=${status}`, {
+        method: "PATCH", headers: authHeaders()
+      });
+      toast(`Order #${id} updated to "${status}"`);
+      loadOrders();
+    } catch(e) { toast("Failed to update order", false); }
+  }
+
+  // ── Load cook's menu ───────────────────────────────────────────
+  async function loadMenu() {
+    try {
+      const res   = await fetch(`${API}/menus/`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(res.status);
+      const items = await res.json();
+
+      document.getElementById("s-items").textContent = items.length;
+
+      const el = document.getElementById("menu-list");
+      if (!items.length) {
+        el.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:32px;color:#aaa">
+          <div style="font-size:48px;margin-bottom:8px">🍽</div>
+          <p>No meals yet — add your first one above!</p>
+        </div>`;
+        return;
+      }
+
+      el.innerHTML = items.map(item => {
+        const imgHtml = item.image_url
+          ? `<img class="mcard-img" src="http://localhost:8000${item.image_url}" alt="${item.name}"
+                  onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+             <div class="mcard-placeholder" style="display:none">🍽</div>`
+          : `<div class="mcard-placeholder">🍽</div>`;
+
+        return `
+          <div class="mcard">
+            ${imgHtml}
+            <div class="mcard-body">
+              <h4>${item.name}
+                ${item.is_flash_deal ? `<span class="flash-badge">⚡ Flash</span>` : ""}
+              </h4>
+              <div class="price">R${item.price.toFixed(2)}
+                ${item.flash_price ? `<span style="font-size:11px;text-decoration:line-through;color:#aaa;margin-left:4px">R${item.price.toFixed(2)}</span>` : ""}
+              </div>
+              <div class="tags">${item.cuisine_tags || "—"}</div>
+            </div>
+            <div class="mcard-foot">
+              <button class="btn-sm ${item.available ? "btn-live" : "btn-hidden"}"
+                onclick="toggleAvail(${item.id}, ${!item.available})">
+                ${item.available ? "✅ Live" : "⏸ Hidden"}
+              </button>
+              <button class="btn-sm btn-del" onclick="deleteMeal(${item.id})">🗑</button>
+            </div>
+          </div>`;
+      }).join("");
+
+    } catch(e) {
+      document.getElementById("menu-list").innerHTML =
+        `<p style="color:var(--red);font-size:14px">
+           Could not load menu. Is the server running?<br>
+           <small>${e.message}</small>
+         </p>`;
+    }
+  }
+
+  async function toggleAvail(id, available) {
+    await fetch(`${API}/menus/${id}?available=${available}`, {
+      method: "PATCH", headers: authHeaders()
+    });
+    loadMenu();
+  }
+
+  async function deleteMeal(id) {
+    if (!confirm("Remove this meal from your menu?")) return;
+    await fetch(`${API}/menus/${id}`, { method:"DELETE", headers:authHeaders() });
+    toast("Meal removed");
+    loadMenu();
+  }
+
+  // ── Init ───────────────────────────────────────────────────────
+  loadOrders();
+  loadMenu();
+  setInterval(() => { loadOrders(); }, 20000);
+</script>
+</body>
+</html>
+

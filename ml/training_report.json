@@ -1,0 +1,14 @@
+{
+  "model": "HybridCF+Popularity",
+  "users": 99,
+  "items": 2,
+  "cv": {
+    "rmse": 0.5898744257279293,
+    "mae": 0.47836813354131014
+  },
+  "metrics": {
+    "precision@5": 0,
+    "recall@5": 0
+  },
+  "trained_at": "2026-07-11T20:35:46.914954"
+}
