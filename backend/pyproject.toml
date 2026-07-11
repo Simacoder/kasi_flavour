@@ -23,10 +23,17 @@ dependencies = [
 ]
 
 [tool.fastapi]
-app = "backend.main:app"
+app = "main:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["backend"]
+only-include = [
+    "main.py",
+    "database.py",
+    "routers",
+    "models",
+    "schemas",
+    "__init__.py",
+]
 
 [build-system]
 requires = ["hatchling"]
