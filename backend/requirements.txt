@@ -4,7 +4,7 @@
 # ── FastAPI core ──────────────────────────────────────────────────────────────
 fastapi[standard]>=0.139.0
 uvicorn[standard]>=0.35.0
-python-multipart==0.0.9
+python-multipart>=0.0.18
 gunicorn==22.0.0
 
 # ── Database ──────────────────────────────────────────────────────────────────
