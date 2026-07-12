@@ -47,7 +47,17 @@ STEP 2 — update all href/src references in HTML files from:
 """
 
 import sys, os
+import logging
 from pathlib import Path
+
+# ── Logging ─────────────────────────────────────────────────────────────────
+# Configured early so startup messages (DB connection, scheduler, frontend)
+# are actually visible in FastAPI Cloud's runtime logs.
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("kasi_flavour")
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _backend_dir  = Path(__file__).resolve().parent          # .../kasi_flavour/backend
@@ -77,7 +87,27 @@ except ImportError:
     _has_scheduler = False
 
 # ── Create DB tables ──────────────────────────────────────────────────────────
-Base.metadata.create_all(bind=engine)
+# FIX: This used to run unguarded at import time. If the DB is unreachable
+# (e.g. DATABASE_URL isn't set in the deployment environment and it falls
+# back to the localhost default, which doesn't exist in a container), this
+# call would hang/raise, the module import would never finish, and uvicorn
+# would never come up — with no useful error in the build logs.
+#
+# Now: log clearly on success or failure, and don't let a DB outage take
+# the whole app down. /health will still report db_connected so you can see
+# the real state at a glance instead of guessing from a dead deployment.
+_db_connected = False
+try:
+    Base.metadata.create_all(bind=engine)
+    _db_connected = True
+    logger.info("Database tables created/verified successfully.")
+except Exception as exc:
+    logger.error(
+        "Could not connect to database at startup (DATABASE_URL=%s): %s. "
+        "App will still start, but DB-backed routes will fail until this is fixed.",
+        "SET" if os.getenv("DATABASE_URL") else "NOT SET (using localhost fallback)",
+        exc,
+    )
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -111,10 +141,11 @@ app.include_router(recommend.router, prefix="/api/recommend", tags=["ML"])
 @app.get("/health", tags=["Health"])
 def health_check():
     return {
-        "status":       "ok",
-        "app":          "Kasi Flavour",
-        "version":      "1.0.0",
-        "ml_scheduler": _has_scheduler,
+        "status":        "ok",
+        "app":           "Kasi Flavour",
+        "version":       "1.0.0",
+        "ml_scheduler":  _has_scheduler,
+        "db_connected":  _db_connected,  # FIX: now reflects real DB state at startup
     }
 
 
@@ -160,10 +191,10 @@ if _frontend_dir.is_dir():
         directory = str(_frontend_dir),
         fallback  = "index.html",
     )
+    logger.info("Serving frontend from %s", _frontend_dir)
 else:
     # Frontend not found — log a warning but don't crash
-    import logging
-    logging.getLogger(__name__).warning(
+    logger.warning(
         "frontend/ directory not found at %s — "
         "API still running, frontend will return 404.",
         _frontend_dir,
