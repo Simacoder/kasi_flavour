@@ -70,9 +70,8 @@ for _p in [str(_backend_dir), str(_project_root), str(_ml_dir)]:
         sys.path.insert(0, _p)
 
 # ── FastAPI + middleware ───────────────────────────────────────────────────────
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 # ── DB ────────────────────────────────────────────────────────────────────────
 from database import engine, Base
@@ -179,13 +178,27 @@ def debug_db():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  STATIC MOUNTS  — after API routes
+#  UPLOADED IMAGES  — proxied from Backblaze B2 (after API routes)
 # ══════════════════════════════════════════════════════════════════════════════
+# FIX: was a StaticFiles mount serving from local disk. Local disk doesn't
+# survive container redeploys on FastAPI Cloud, so every deploy wiped
+# previously uploaded meal photos (404s). Images now live in a private B2
+# bucket (see storage.py) and are streamed back through this route instead.
+# URL shape is unchanged (/uploads/meals/<filename>), so no frontend changes
+# were needed beyond this backend swap.
+from fastapi.responses import StreamingResponse
+from storage import get_object_stream
 
-# Uploaded meal images → GET /uploads/meals/<filename>
-_uploads_dir = _backend_dir / "uploads"
-(_uploads_dir / "meals").mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(_uploads_dir)), name="uploads")
+@app.get("/uploads/meals/{filename}")
+def serve_meal_image(filename: str):
+    try:
+        obj = get_object_stream(f"meals/{filename}")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return StreamingResponse(
+        obj["Body"],
+        media_type=obj.get("ContentType", "image/jpeg"),
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════════════

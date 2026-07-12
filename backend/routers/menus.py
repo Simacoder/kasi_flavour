@@ -4,6 +4,12 @@ routers/menus.py – Menu CRUD + image upload
 FIX: /upload-image MUST be declared before /{item_id} otherwise
      FastAPI matches "upload-image" as the item_id path param
      and returns 405 Method Not Allowed on POST.
+
+FIX: images now upload to Backblaze B2 instead of local disk. Local disk
+     writes don't survive container redeploys on FastAPI Cloud — every
+     redeploy wiped previously uploaded meal photos, causing 404s. See
+     storage.py for the B2 client; images are served back through the
+     /uploads/meals/{filename} proxy route in main.py (bucket is private).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header
@@ -16,14 +22,12 @@ import uuid, os
 from database import get_db
 from models.models import MenuItem, Cook, User
 from schemas.schemas import MenuItemCreate, MenuItemOut
+from storage import upload_bytes, delete_object
 
 router = APIRouter()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "kasi-flavour-secret-change-in-prod")
 ALGORITHM  = "HS256"
-
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads", "meals")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # ── JWT helper ────────────────────────────────────────────────────────────────
@@ -78,11 +82,18 @@ async def upload_meal_image(
     ext      = (file.filename or "img").rsplit(".", 1)[-1].lower()
     ext      = ext if ext in {"jpg", "jpeg", "png", "webp", "gif"} else "jpg"
     filename = f"{uuid.uuid4()}.{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
 
-    with open(filepath, "wb") as f:
-        f.write(contents)
+    try:
+        upload_bytes(
+            key=f"meals/{filename}",
+            data=contents,
+            content_type=file.content_type,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Image upload failed: {exc}")
 
+    # URL scheme unchanged from before — frontend still requests
+    # /uploads/meals/<filename>, which main.py now proxies from B2.
     return {"image_url": f"/uploads/meals/{filename}"}
 
 
@@ -172,13 +183,7 @@ def delete_menu_item(item_id: int, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
     if item.image_url:
-        img_path = os.path.join(
-            os.path.dirname(__file__), "..",
-            item.image_url.lstrip("/").replace("/", os.sep)
-        )
-        if os.path.exists(img_path):
-            os.remove(img_path)
+        filename = item.image_url.rsplit("/", 1)[-1]
+        delete_object(f"meals/{filename}")
     db.delete(item)
     db.commit()
-
-    
