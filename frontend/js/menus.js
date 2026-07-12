@@ -319,26 +319,17 @@ function _showEmptyState(grid) {
 
 function _showError(grid, message) {
   if (!grid) return;
+
+  console.error("Menu loading failed:", message);
+
   grid.innerHTML = `
-    <div style="grid-column:1/-1;text-align:center;padding:52px 20px">
-      <div style="font-size:52px;margin-bottom:12px">⚠️</div>
-      <p style="font-size:15px;font-weight:600;color:var(--red)">
-        Cannot connect to server
-      </p>
-      <p style="font-size:13px;color:#888;margin-top:6px">${message}</p>
-      <p style="font-size:12px;color:#bbb;margin-top:10px">
-        Make sure uvicorn is running:<br>
-        <code style="background:#f5f5f5;padding:3px 10px;border-radius:5px">
-          uvicorn main:app --reload --port 8000
-        </code>
-      </p>
-      <button
-        onclick="loadMenus()"
-        style="margin-top:16px;padding:10px 24px;background:var(--red);color:#fff;
-               border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
-        ↺ Retry
+    <div style="grid-column:1/-1;text-align:center;padding:40px;color:#666">
+      <p>Unable to load the menu at the moment.</p>
+      <button onclick="loadMenus()" class="btn-add">
+        Retry
       </button>
-    </div>`;
+    </div>
+  `;
 }
 
 
