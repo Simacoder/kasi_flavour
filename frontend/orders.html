@@ -133,7 +133,7 @@
 
     try {
       // ── FIX: use GET /api/orders with Authorization header ────────────────
-      const res = await fetch("http://localhost:8000/api/orders", {
+      const res = await fetch("/api/orders", {
         method:  "GET",
         headers: {
           "Authorization": `Bearer ${token}`,

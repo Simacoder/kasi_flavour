@@ -13,7 +13,14 @@
  * No JOIN bug: GET /api/menus/ has no Cook join unless kasi filter is active
  */
 
-const SERVER = "http://localhost:8000";   // backend base URL
+// FIX: was hardcoded to "http://localhost:8000", completely independent of
+// api.js's own API_BASE constant — so fixing api.js never touched this file.
+// Frontend and backend are served from the same FastAPI app/origin, so an
+// empty string here means every ${SERVER}... template literal below
+// (API calls, image URLs, and the debug link) resolves relative to whatever
+// domain the page is actually loaded from — localhost in dev, the real
+// domain in production. No hardcoded host needed anywhere.
+const SERVER = "";   // backend base URL (relative — same origin as frontend)
 let allMenuItems = [];                     // cached for client-side filtering
 
 // ── Food emoji fallbacks (rotated by item.id) ─────────────────────────────────

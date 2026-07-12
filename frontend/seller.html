@@ -236,7 +236,7 @@
 <div id="toast"></div>
 
 <script>
-  const API   = "http://localhost:8000/api";
+  const API   = "/api";
   const TOKEN = localStorage.getItem("kf_token");
   const NAME  = localStorage.getItem("kf_name") || "Cook";
 
@@ -446,7 +446,7 @@
 
       el.innerHTML = items.map(item => {
         const imgHtml = item.image_url
-          ? `<img class="mcard-img" src="http://localhost:8000${item.image_url}" alt="${item.name}"
+          ? `<img class="mcard-img" src="${item.image_url}" alt="${item.name}"
                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
              <div class="mcard-placeholder" style="display:none">🍽</div>`
           : `<div class="mcard-placeholder">🍽</div>`;
