@@ -106,12 +106,29 @@ async function _get(path) {
 
 async function _post(path, body) {
   const res = await fetch(API_BASE + path, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json", ..._headers() },
-    body:    JSON.stringify(body),
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ..._headers()
+    },
+    body: JSON.stringify(body),
   });
-  if (!res.ok) throw await res.json();
-  return res.json();
+
+  const text = await res.text();
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { message: text };
+  }
+
+  if (!res.ok) {
+    console.error("POST failed:", res.status, data);
+    throw data;
+  }
+
+  return data;
 }
 
 function _headers() {
