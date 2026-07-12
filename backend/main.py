@@ -149,6 +149,35 @@ def health_check():
     }
 
 
+# TEMP DIAGNOSTIC — remove once DB connectivity is confirmed working.
+# Log streaming wasn't surfacing the startup exception, so this attempts a
+# live connection on request and returns the real error directly in the
+# response instead, bypassing the logging pipeline entirely.
+@app.get("/debug/db", tags=["Health"])
+def debug_db():
+    import os as _os
+    from sqlalchemy import text as _text
+    raw_url = _os.getenv("DATABASE_URL", "NOT SET — using localhost fallback")
+    # Redact password before returning anything
+    safe_url = raw_url
+    if "@" in raw_url and "://" in raw_url:
+        scheme, rest = raw_url.split("://", 1)
+        creds, hostpart = rest.split("@", 1) if "@" in rest else ("", rest)
+        user = creds.split(":")[0] if ":" in creds else creds
+        safe_url = f"{scheme}://{user}:***REDACTED***@{hostpart}"
+    try:
+        with engine.connect() as conn:
+            conn.execute(_text("SELECT 1"))
+        return {"connected": True, "database_url_used": safe_url}
+    except Exception as exc:
+        return {
+            "connected": False,
+            "database_url_used": safe_url,
+            "error_type": type(exc).__name__,
+            "error_message": str(exc),
+        }
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  STATIC MOUNTS  — after API routes
 # ══════════════════════════════════════════════════════════════════════════════
