@@ -1,10 +1,11 @@
 """
 routers/orders.py – Place, view and update orders
 """
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from jose import jwt, JWTError
+import os
 
 from database import get_db
 from models.models import Order, OrderItem, MenuItem, OrderStatus
@@ -12,13 +13,41 @@ from schemas.schemas import OrderCreate, OrderOut
 
 router = APIRouter()
 
+SECRET_KEY = os.getenv("SECRET_KEY", "kasi-flavour-secret-change-in-prod")
+ALGORITHM  = "HS256"
+
+
+# ── JWT helper ────────────────────────────────────────────────────────────────
+# FIX: order placement was using a hardcoded customer_id = 1 for every single
+# order ("replace with JWT user id" — a leftover placeholder that was never
+# finished). This either crashed with a foreign-key/integrity error (if no
+# user with id=1 exists in the database) or silently attributed every order
+# to the wrong customer. Same JWT decoding pattern already used successfully
+# in routers/menus.py.
+def _get_user_id(authorization: str = "") -> Optional[int]:
+    if not authorization.startswith("Bearer "):
+        return None
+    token = authorization.split(" ", 1)[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return int(payload.get("sub", 0)) or None
+    except JWTError:
+        return None
+
 
 @router.post("/", response_model=OrderOut, status_code=201)
-def place_order(body: OrderCreate, db: Session = Depends(get_db)):
+def place_order(
+    body:          OrderCreate,
+    authorization: str     = Header(default=""),
+    db:            Session = Depends(get_db),
+):
     """Customer places a new order."""
+    user_id = _get_user_id(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     total = 0.0
     items_to_add = []
-
     for item_in in body.items:
         menu_item = db.query(MenuItem).filter(
             MenuItem.id == item_in.menu_item_id,
@@ -37,7 +66,7 @@ def place_order(body: OrderCreate, db: Session = Depends(get_db)):
     total += 8.0
 
     order = Order(
-        customer_id      = 1,          # replace with JWT user id
+        customer_id      = user_id,   # FIX: was hardcoded to 1
         total            = round(total, 2),
         payment_method   = body.payment_method,
         delivery_address = body.delivery_address,
@@ -81,5 +110,23 @@ def update_order_status(order_id: int, status: OrderStatus, db: Session = Depend
 
 
 @router.get("/", response_model=List[OrderOut])
-def list_orders(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
-    return db.query(Order).offset(skip).limit(limit).all()
+def list_orders(
+    authorization: str     = Header(default=""),
+    skip:          int     = 0,
+    limit:         int     = 20,
+    db:            Session = Depends(get_db),
+):
+    """
+    FIX: was returning ALL orders from ALL customers to anyone who called
+    this — a real privacy bug. Now scoped to the logged-in user's own orders.
+    """
+    user_id = _get_user_id(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return (
+        db.query(Order)
+        .filter(Order.customer_id == user_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
