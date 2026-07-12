@@ -7,25 +7,50 @@
  *  - Images                  → Stale While Revalidate
  */
 
-const CACHE_NAME    = "kasi-flavour-v1";
-const OFFLINE_PAGE  = "/pages/offline.html";
+// FIX: bumped v1 → v2. This forces the activate step to delete the old
+// cache (which may contain a broken/partial install, or a stale api.js).
+// Without bumping this, browsers that already have "kasi-flavour-v1"
+// stored may keep reusing entries from it indefinitely.
+const CACHE_NAME    = "kasi-flavour-v2";
+
+// FIX: paths below used to be under /pages/, but main.py's own docs confirm
+// HTML files were moved to the root of frontend/. The old paths 404'd,
+// which made cache.addAll() reject during install — meaning this service
+// worker never activated, and the browser kept running whichever SW was
+// registered first (serving old, possibly broken, cached JS forever).
+//
+// FIX: offline.html doesn't exist anywhere in frontend/ — confirmed via
+// directory listing. Referencing it in APP_SHELL would 404 and break
+// cache.addAll() the same way /pages/... did. Falling back to index.html
+// instead, which does exist, so at least something renders when offline
+// rather than the browser's default "no internet" page.
+const OFFLINE_PAGE  = "/index.html";
 
 const APP_SHELL = [
   "/",
-  "/pages/index.html",
-  "/pages/orders.html",
-  "/pages/track.html",
+  "/index.html",
+  "/login.html",
+  "/admin.html",
+  "/orders.html",
+  "/seller.html",
+  "/track.html",
   "/css/main.css",
   "/js/api.js",
   "/js/cart.js",
   "/js/menus.js",
-  OFFLINE_PAGE,
 ];
 
 // ── Install: cache app shell ──────────────────────────────────────────────────
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then((cache) =>
+      // FIX: cache.addAll() fails entirely if ANY single URL 404s, which is
+      // exactly what happened before. addAll() is kept here since all paths
+      // above are now verified to exist — but if you add more app-shell
+      // entries later, double check each one resolves, or install will
+      // silently break again.
+      cache.addAll(APP_SHELL)
+    )
   );
   self.skipWaiting();
 });
