@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kasi Flavour – Driver</title>
+  <link rel="stylesheet" href="./css/main.css"/>
+  <style>
+    body { background:#f4f4f4; padding:16px; }
+    .page-header { margin-bottom:18px; }
+    .page-header h2 { font-size:20px; font-weight:800; color:#3E2723; }
+    .page-header p  { font-size:13px; color:#888; margin-top:3px; }
+
+    .order-card {
+      background:#fff; border-radius:12px; padding:16px;
+      box-shadow:0 2px 8px rgba(0,0,0,.07); margin-bottom:12px;
+    }
+    .order-card h4 { font-size:15px; font-weight:700; color:#3E2723; }
+    .order-card p  { font-size:13px; color:#888; margin-top:4px; }
+    .order-card .price { font-size:16px; font-weight:800; color:#D32F2F; margin-top:8px; }
+
+    .btn-accept {
+      margin-top:10px; width:100%; padding:10px; background:var(--red,#D32F2F);
+      color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700;
+      cursor:pointer;
+    }
+    .btn-accept:hover { opacity:.9; }
+    .btn-accept:disabled { background:#ccc; cursor:not-allowed; }
+
+    .status-banner {
+      background:#E8F5E9; color:#2E7D32; padding:10px 14px; border-radius:8px;
+      font-size:13px; font-weight:600; margin-bottom:16px;
+    }
+
+    .empty-state { text-align:center; padding:40px 20px; color:#aaa; }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <h2>🚴 Driver Dashboard</h2>
+    <p>Accept orders ready for pickup and share your location</p>
+  </div>
+
+  <div id="location-status" class="status-banner" style="display:none"></div>
+
+  <div id="active-delivery"></div>
+
+  <h3 style="font-size:15px;font-weight:700;color:#3E2723;margin:18px 0 10px">
+    Available Orders
+  </h3>
+  <div id="available-orders">
+    <p class="loading">Loading…</p>
+  </div>
+
+<script src="./js/api.js"></script>
+<script>
+  const TOKEN = localStorage.getItem("kf_token");
+  if (!TOKEN) window.location.href = "login.html";
+
+  const API = "/api";
+  let myDriverId = null;
+  let activeOrderId = null;
+  let locationSocket = null;
+  let watchId = null;
+
+  function _headers() {
+    return { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" };
+  }
+
+  // ── Init: resolve driver profile ──────────────────────────────────────────
+  async function init() {
+    const res = await fetch(`${API}/deliveries/me`, { headers: _headers() });
+    const driver = await res.json();
+    myDriverId = driver.id;
+
+    await loadMyActiveDelivery();
+    await loadAvailableOrders();
+  }
+
+  // ── My active (already accepted) delivery ─────────────────────────────────
+  async function loadMyActiveDelivery() {
+    const res = await fetch(`${API}/deliveries/my`, { headers: _headers() });
+    const deliveries = await res.json();
+
+    const container = document.getElementById("active-delivery");
+    if (!deliveries.length) {
+      container.innerHTML = "";
+      return;
+    }
+
+    const d = deliveries[0];
+    activeOrderId = d.order_id;
+    container.innerHTML = `
+      <div class="order-card" style="border-left:4px solid #2E7D32">
+        <h4>📦 Active Delivery — Order #${d.order_id}</h4>
+        <p>Status: ${d.status}</p>
+        <p class="price">Fee: R${d.fee.toFixed(2)}</p>
+        <button class="btn-accept" onclick="startSharingLocation()">
+          📍 Start Sharing Location
+        </button>
+        <button class="btn-accept" style="background:#2E7D32;margin-top:8px"
+          onclick="markDelivered(${d.order_id})">
+          ✅ Mark Delivered
+        </button>
+      </div>`;
+  }
+
+  // ── Available orders ready for pickup ──────────────────────────────────────
+  async function loadAvailableOrders() {
+    const container = document.getElementById("available-orders");
+    try {
+      const res = await fetch(`${API}/deliveries/available`, { headers: _headers() });
+      if (!res.ok) throw new Error(res.status);
+      const orders = await res.json();
+
+      if (!orders.length) {
+        container.innerHTML = `<div class="empty-state">No orders ready for pickup right now.</div>`;
+        return;
+      }
+
+      container.innerHTML = orders.map(o => `
+        <div class="order-card">
+          <h4>Order #${o.id}</h4>
+          <p>${o.delivery_address || "No address provided"}</p>
+          ${o.notes ? `<p>Note: ${o.notes}</p>` : ""}
+          <p class="price">R${o.total.toFixed(2)}</p>
+          <button class="btn-accept" onclick="acceptOrder(${o.id}, this)">
+            Accept Order
+          </button>
+        </div>`).join("");
+
+    } catch {
+      container.innerHTML = `<div class="empty-state">Could not load orders. <button onclick="loadAvailableOrders()">Retry</button></div>`;
+    }
+  }
+
+  async function acceptOrder(orderId, btn) {
+    btn.disabled = true;
+    btn.textContent = "Accepting…";
+    try {
+      const res = await fetch(`${API}/deliveries/${orderId}/accept`, {
+        method: "POST", headers: _headers(),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert("Could not accept order: " + (err.detail || "Unknown error"));
+        btn.disabled = false;
+        btn.textContent = "Accept Order";
+        return;
+      }
+      await loadMyActiveDelivery();
+      await loadAvailableOrders();
+    } catch {
+      alert("Network error accepting order.");
+      btn.disabled = false;
+      btn.textContent = "Accept Order";
+    }
+  }
+
+  // ── GPS location sharing over WebSocket ─────────────────────────────────────
+  function startSharingLocation() {
+    if (!myDriverId || !activeOrderId) return;
+
+    locationSocket = api.openDriverSocket(myDriverId);
+
+    const banner = document.getElementById("location-status");
+    banner.style.display = "block";
+    banner.textContent = "📍 Sharing your location live…";
+
+    if (!navigator.geolocation) {
+      banner.textContent = "⚠️ Geolocation not supported on this device.";
+      return;
+    }
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        locationSocket.sendLocation(activeOrderId, pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        banner.textContent = "⚠️ Location error: " + err.message;
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+    );
+  }
+
+  function stopSharingLocation() {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    if (locationSocket) locationSocket.close();
+    document.getElementById("location-status").style.display = "none";
+  }
+
+  async function markDelivered(orderId) {
+    if (!confirm("Mark this order as delivered?")) return;
+    await fetch(`${API}/deliveries/${orderId}/status?status=delivered`, {
+      method: "PATCH", headers: _headers(),
+    });
+    stopSharingLocation();
+    activeOrderId = null;
+    await loadMyActiveDelivery();
+    await loadAvailableOrders();
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -75,7 +75,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # ── DB ────────────────────────────────────────────────────────────────────────
 from database import engine, Base
-from routers import auth, users, menus, orders, tracking, recommend
+from routers import auth, users, menus, orders, tracking, recommend, deliveries
 
 # ── ML scheduler (graceful — skips if ml/ not set up yet) ────────────────────
 try:
@@ -135,6 +135,7 @@ app.include_router(menus.router,     prefix="/api/menus",     tags=["Menus"])
 app.include_router(orders.router,    prefix="/api/orders",    tags=["Orders"])
 app.include_router(tracking.router,  prefix="/api/track",     tags=["Tracking"])
 app.include_router(recommend.router, prefix="/api/recommend", tags=["ML"])
+app.include_router(deliveries.router, prefix="/api/deliveries", tags=["Deliveries"])
 
 
 @app.get("/health", tags=["Health"])
