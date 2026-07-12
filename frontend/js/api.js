@@ -3,7 +3,19 @@
  * All fetch calls go through here so the base URL is one place.
  */
 
-const API_BASE = "http://localhost:8000/api";
+// FIX: was hardcoded to "http://localhost:8000/api", which only ever worked
+// on your local machine. Since the frontend is served from the same FastAPI
+// app as the backend (via app.frontend()), a relative path resolves against
+// whatever origin the page was actually loaded from — localhost in dev,
+// your real domain in production. No environment-specific config needed.
+const API_BASE = "/api";
+
+// FIX: WebSocket protocol must match the page's protocol. A page loaded over
+// https:// cannot open a plain ws:// connection (browsers block mixed
+// content), so this picks wss:// automatically when appropriate. Host is
+// also read dynamically instead of being hardcoded to localhost:8000.
+const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
+const WS_HOST = window.location.host;
 
 const api = {
 
@@ -63,7 +75,7 @@ const api = {
 
   // ── Tracking ───────────────────────────────────────────────────────────────
   openTrackingSocket(orderId, onLocation) {
-    const ws = new WebSocket(`ws://localhost:8000/api/track/order/${orderId}`);
+    const ws = new WebSocket(`${WS_PROTOCOL}//${WS_HOST}/api/track/order/${orderId}`);
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
       onLocation(data.lat, data.lng);
@@ -73,7 +85,7 @@ const api = {
   },
 
   openDriverSocket(driverId) {
-    const ws = new WebSocket(`ws://localhost:8000/api/track/driver/${driverId}`);
+    const ws = new WebSocket(`${WS_PROTOCOL}//${WS_HOST}/api/track/driver/${driverId}`);
     return {
       sendLocation(orderId, lat, lng) {
         if (ws.readyState === WebSocket.OPEN) {
